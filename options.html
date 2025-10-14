@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Tab Video Time Left • Options</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <main class="wrap">
+    <h1>Tab Video Time Left</h1>
+
+    <section>
+      <h2>General</h2>
+      <form id="form" autocomplete="off">
+        <label>
+          Playing prefix
+          <input id="prefixPlaying" type="text" maxlength="10" placeholder="⏳" />
+        </label>
+
+        <label>
+          Paused prefix
+          <input id="prefixPaused" type="text" maxlength="10" placeholder="⏸" />
+        </label>
+
+        <label>
+          Finished text
+          <input id="finishedPrefix" type="text" maxlength="20" placeholder="✓ Finished" />
+        </label>
+
+        <label>
+          Finished hold (ms)
+          <div class="row-inline">
+            <input id="finishedHoldMs" type="number" min="0" step="500" />
+            <label class="row-inline forever">
+              <input id="finishedHoldForever" type="checkbox" />
+              <span>∞ Forever</span>
+            </label>
+          </div>
+          <span class="hint" id="finishedHoldHint">Set 0 to keep “Finished” indefinitely</span>
+        </label>
+
+        <label>
+          Update interval (ms)
+          <input id="updateIntervalMs" type="number" min="100" step="50" />
+        </label>
+
+        <label class="row">
+          <input id="defaultEnabled" type="checkbox" />
+          <span>Enable by default on new sites</span>
+        </label>
+
+        <label class="row">
+          <input id="hideWhenInactive" type="checkbox" />
+          <span>Hide timer when tab is inactive</span>
+        </label>
+
+        <div class="buttons">
+          <button type="button" id="save">Save</button>
+          <button type="button" id="reset">Reset to defaults</button>
+        </div>
+
+        <div id="status" aria-live="polite"></div>
+      </form>
+    </section>
+
+    <section>
+      <h2>Per-site Control</h2>
+
+      <div class="site-row">
+        <input id="currentHost" type="text" placeholder="example.com" />
+        <button id="toggleSite">Toggle current site</button>
+      </div>
+
+      <div class="site-row">
+        <label class="row">
+          <input id="finishedEnabledThisSite" type="checkbox" />
+          <span>Show “Finished” banner on this site</span>
+        </label>
+        <button id="applySitePrefs">Apply</button>
+      </div>
+
+      <details>
+        <summary>Managed Sites</summary>
+        <table id="sitesTable">
+          <thead>
+            <tr>
+              <th>Hostname</th>
+              <th>Enabled</th>
+              <th>Finished banner</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </details>
+    </section>
+
+    <section>
+      <h2>Shortcuts</h2>
+      <p>Set keyboard shortcuts at <code>chrome://extensions/shortcuts</code>.</p>
+    </section>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>

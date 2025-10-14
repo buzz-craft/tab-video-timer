@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Tab Video Time Left</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="row">
+      <img src="icon48.png" alt="" width="24" height="24" />
+      <h1>Video Controls</h1>
+      <span id="host" title="Current site"></span>
+    </header>
+
+    <section class="controls">
+      <button id="mute" class="btn-icon" title="Mute current media" aria-pressed="false">
+        <span class="icon" aria-hidden="true">
+          <svg id="muteSvg" viewBox="0 0 24 24" width="18" height="18">
+            <path id="spk" d="M11 5l-4 4H4v6h3l4 4V5z"></path>
+            <path id="waves" d="M14.5 8.5a5 5 0 010 7m2.5-9a8 8 0 010 11" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <path id="strike" d="M3 3l18 18" stroke="currentColor" stroke-width="2" style="display:none"/>
+          </svg>
+        </span>
+        <span id="muteLabel">Mute</span>
+      </button>
+
+      <button id="toggleSite" title="Enable/disable for this site">Disable Site</button>
+    </section>
+
+    <section class="prefs">
+      <div class="pref-row">
+        <label class="row">
+          <input id="hideWhenInactive" type="checkbox" />
+          <span>Hide timer in tab title when tab is inactive</span>
+        </label>
+      </div>
+
+      <div class="pref-row">
+        <label class="row">
+          <input id="finishedEnabledThisSite" type="checkbox" />
+          <span>Show “Finished” banner on this site</span>
+        </label>
+      </div>
+
+      <div class="links">
+        <button id="openOptions" type="button">Options…</button>
+        <button id="openShortcuts" type="button">Shortcuts…</button>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <small>Tip: Set keyboard shortcut at chrome://extensions/shortcuts</small>
+    </footer>
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+</html>

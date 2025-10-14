@@ -1,0 +1,8 @@
+# build artifacts
+dist/
+*.zip
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+*.log
