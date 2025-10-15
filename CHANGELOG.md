@@ -1,12 +1,18 @@
 # Changelog
 
-## 1.0.0 – Initial release
-- Shows remaining time in the **tab title** with Playing/Paused prefixes.
-- **Finished** banner with configurable hold (supports **Forever** without clearing your ms value).
-- **Mute/Unmute** works across all frames; popup shows **No media** when none is detected.
-- **Per-site enable/disable** and per-site toggle for Finished banner.
-- Options: prefixes, update interval, hide-when-inactive, site management.
-- UI polish for light/dark modes, clear disabled states, and tooltips.
+## 1.0.1 — Docs & tooling - 2025-20-15
+- docs: split maintainer steps into **PUBLISHING.md**
+- docs: refine **README.md** (user-first), add permissions & privacy notes
+- chore(scripts): add **bump-major.sh**, **bump-minor.sh**, **bump-patch.sh**
+- chore(scripts): packaging script retained (**scripts/package.sh**)
+- meta: recommend tagging releases and attaching ZIP in GitHub Releases
+
+## 1.0.0 — Initial public release - 2025-10-14
+- feature: time remaining in tab title
+- feature: quick Mute/Unmute across iframes
+- feature: per-site enable/disable + “Finished” banner control
+- ui: popup controls + options page
+- privacy: no tracking; settings stay local/Sync
 
 ## Unreleased
-- (add entries here for your next changes)
+- ...
