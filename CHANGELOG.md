@@ -1,19 +1,29 @@
 # Changelog
+All notable changes to this project will be documented in this file.
+Format inspired by Keep a Changelog. Versioning: SemVer.
 
-## 1.0.1 — Docs & tooling
-- docs: split maintainer steps into **PUBLISHING.md**
-- docs: refine **README.md** (user-first), add permissions & privacy notes
-- chore(scripts): add **bump-major.sh**, **bump-minor.sh**, **bump-patch.sh**
-- chore(scripts): add **release.sh** (interactive: major/minor/patch → push → package)
-- chore(scripts): keep **scripts/package.sh** for Web Store ZIP
-- meta: recommend tagging releases and attaching ZIP in GitHub Releases
+## 1.0.1 — 2025-10-15
+### User-facing
+- No UI/feature changes in this release.
 
-## 1.0.0 — Initial public release
-- feature: time remaining in tab title
-- feature: quick Mute/Unmute across iframes
-- feature: per-site enable/disable + “Finished” banner control
-- ui: popup controls + options page
-- privacy: no tracking; settings stay local/Sync
+### Internal / Tooling
+- Added `scripts/release.sh` with:
+  - interactive menu + confirmation
+  - `nobump` mode (push + optional package without version change)
+  - `--push-only` flag (skip packaging in `nobump`)
+  - guards to prevent double-bumps (last commit/tag checks)
+- Made `bump-major.sh`, `bump-minor.sh`, `bump-patch.sh` thin wrappers around `release.sh`.
+- Updated docs: `PUBLISHING.md`, `README.md`.
+
+## 1.0.0 — 2025-10-14
+### User-facing
+- Show remaining time in the tab title (Playing/Paused).
+- One-click Mute/Unmute across iframes.
+- Per-site enable/disable and “Finished” banner control.
+- Options page; no tracking (settings local/Sync).
+
+### Internal / Tooling
+- Initial packaging script `scripts/package.sh`.
 
 ## Unreleased
-- ...
+- (add upcoming changes here)
