@@ -12,8 +12,8 @@ set -euo pipefail
 #   ./scripts/release.sh nobump --push-only # no version change; push only (skip packaging)
 #
 # Safeguards:
-#   • If no argument and interactive TTY, always show a menu and ask for confirmation.
-#   • If not interactive and no argument, abort.
+#   • If no arg and interactive TTY, show a menu and ask for confirmation.
+#   • If not interactive and no arg, abort.
 #   • If the last commit message looks like a version bump, refuse to bump again.
 #   • If the latest tag equals the manifest version, refuse to bump again.
 
@@ -30,16 +30,16 @@ need jq
 
 chmod +x scripts/bump-*.sh scripts/package.sh || true
 
-# Parse args
-choice="${1:-}"            # patch | minor | major | nobump | (empty)
+# Parse args (support --push-only in any position)
+choice=""
 push_only="false"
-if [[ "${2:-}" == "--push-only" || "${1:-}" == "--push-only" ]]; then
-  # support either position; normalize
-  if [[ "${1:-}" == "--push-only" ]]; then
-    choice="${2:-}"
-  fi
-  push_only="true"
-fi
+for arg in "${@:-}"; do
+  case "$arg" in
+    patch|minor|major|nobump) choice="$arg" ;;
+    --push-only) push_only="true" ;;
+    *) ;;
+  esac
+done
 
 # Warn if working tree has unstaged/staged changes
 if ! git diff --quiet || ! git diff --cached --quiet; then
@@ -48,10 +48,9 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   case "${ans:-N}" in y|Y) : ;; *) echo "Aborted."; exit 1;; esac
 fi
 
-OLD_VER=$(jq -r '.version' manifest.json)
+OLD_VER="$(jq -r '.version' manifest.json)"
 [[ "$OLD_VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "manifest.json version '$OLD_VER' is not MAJOR.MINOR.PATCH"
 
-# Compute prospective nexts (for menu display)
 IFS='.' read -r MA MI PA <<< "$OLD_VER"
 NEXT_PATCH="$MA.$MI.$((PA+1))"
 NEXT_MINOR="$MA.$((MI+1)).0"
@@ -66,7 +65,8 @@ if [[ -z "$choice" ]]; then
   echo "  1) patch   ($OLD_VER -> $NEXT_PATCH)"
   echo "  2) minor   ($OLD_VER -> $NEXT_MINOR)"
   echo "  3) major   ($OLD_VER -> $NEXT_MAJOR)"
-  echo "  4) NO-BUMP (keep $OLD_VER; push + package${push_only == true && ' [--push-only: skip packaging]' || ''})"
+  echo "  4) NO-BUMP (keep $OLD_VER; push + package)"
+  echo "     Tip: You can add --push-only with 'nobump' to skip packaging."
   read -r -p "Enter 1/2/3/4: " n
   case "$n" in
     1) choice="patch" ;;
@@ -80,7 +80,7 @@ fi
 # ----- Double-bump guards -----
 last_msg="$(git log -1 --pretty=%B | tr -d '\r')"
 if [[ "$choice" =~ ^(patch|minor|major)$ ]]; then
-  # Guard A: last commit message already a bump
+  # Guard A: last commit already looks like a bump
   if echo "$last_msg" | grep -Eqi '\b(bump version to|version bump|chore:\s*bump version to)\b'; then
     die "Last commit looks like a bump already. Refusing to bump again. (Use 'nobump' or make another commit first.)"
   fi
@@ -101,10 +101,11 @@ confirm() {
 
 case "$choice" in
   nobump)
-    echo "ℹ️  NO-BUMP mode selected (version stays at $OLD_VER)."
     if [[ "$push_only" == "true" ]]; then
-      confirm "NO-BUMP (push only; skip packaging)" ""
+      echo "ℹ️  NO-BUMP + PUSH-ONLY selected (keep $OLD_VER; skip packaging)."
+      confirm "NO-BUMP (push only)" ""
     else
+      echo "ℹ️  NO-BUMP selected (keep $OLD_VER; push + package)."
       confirm "NO-BUMP (no version change)" ""
     fi
     ;;
@@ -132,7 +133,7 @@ case "$choice" in
     ;;
 esac
 
-NEW_VER=$(jq -r '.version' manifest.json)
+NEW_VER="$(jq -r '.version' manifest.json)"
 
 echo "⬆️  Pushing commits..."
 git push
