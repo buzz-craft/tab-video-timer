@@ -6,11 +6,12 @@
 
 ## One-step release
 ```bash
-# Interactive: choose major/minor/patch or NO-BUMP
+# Interactive menu + confirmation:
 ./scripts/release.sh
 
 # Non-interactive:
-./scripts/release.sh patch    # 1.0.0 -> 1.0.1
-./scripts/release.sh minor    # 1.0.1 -> 1.1.0
-./scripts/release.sh major    # 1.1.0 -> 2.0.0
-./scripts/release.sh nobump   # no version change; push + package only
+./scripts/release.sh patch
+./scripts/release.sh minor
+./scripts/release.sh major
+./scripts/release.sh nobump
+./scripts/release.sh nobump --push-only
