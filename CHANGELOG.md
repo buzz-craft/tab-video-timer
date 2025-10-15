@@ -7,11 +7,8 @@ Format inspired by Keep a Changelog. Versioning: SemVer.
 - No UI/feature changes in this release.
 
 ### Internal / Tooling
-- Added `scripts/release.sh` with:
-  - interactive menu + confirmation
-  - `nobump` mode (push + optional package without version change)
-  - `--push-only` flag (skip packaging in `nobump`)
-  - guards to prevent double-bumps (last commit/tag checks)
+- Added `scripts/release.sh` (interactive; supports `nobump`, `--push-only`, and double-bump guards).
+- **Fix:** `release.sh` menu now Bash/zsh-compatible (removed bad substitution causing `bad substitution` in zsh).
 - Made `bump-major.sh`, `bump-minor.sh`, `bump-patch.sh` thin wrappers around `release.sh`.
 - Updated docs: `PUBLISHING.md`, `README.md`.
 
