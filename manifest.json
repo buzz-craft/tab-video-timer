@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Tab Video Timer",
   "short_name": "Video Timer",
-  "version": "1.0.2",
+  "version": "1.0.1",
   "description": "Shows remaining time of the active video/audio in the tab title. Popup gives quick mute and per-site controls.",
   "icons": {
     "16": "icon16.png",
