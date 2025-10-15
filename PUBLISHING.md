@@ -2,12 +2,14 @@
 
 ## Versioning
 - Semantic: `MAJOR.MINOR.PATCH`
-- Chrome requires `manifest.json.version` to increase each upload.
+- Chrome requires `manifest.json.version` to increase for every upload.
 
-## Bump version
-Choose one:
+## One-step release (recommended)
 ```bash
-./scripts/bump-patch.sh   # 1.0.0 → 1.0.1
-./scripts/bump-minor.sh   # 1.0.1 → 1.1.0
-./scripts/bump-major.sh   # 1.1.0 → 2.0.0
-git push && git push --tags
+# Interactive (choose major/minor/patch)
+./scripts/release.sh
+
+# Or non-interactive:
+./scripts/release.sh patch   # 1.0.0 -> 1.0.1
+./scripts/release.sh minor   # 1.0.1 -> 1.1.0
+./scripts/release.sh major   # 1.1.0 -> 2.0.0
