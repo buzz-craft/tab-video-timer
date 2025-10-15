@@ -1,18 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# release.sh — bump (major/minor/patch) or NO-BUMP -> push -> package
+# release.sh — bump (patch/minor/major) or NO-BUMP -> push -> (optional) package
+#
 # Usage:
-#   ./scripts/release.sh              # interactive prompt
-#   ./scripts/release.sh patch        # non-interactive
-#   ./scripts/release.sh minor
-#   ./scripts/release.sh major
-#   ./scripts/release.sh nobump       # no version change; push + package only
+#   ./scripts/release.sh                    # interactive menu + confirmation
+#   ./scripts/release.sh patch              # bump x.y.Z -> x.y.(Z+1)
+#   ./scripts/release.sh minor              # bump x.Y.z -> x.(Y+1).0
+#   ./scripts/release.sh major              # bump X.y.z -> (X+1).0.0
+#   ./scripts/release.sh nobump             # no version change; push + package
+#   ./scripts/release.sh nobump --push-only # no version change; push only (skip packaging)
+#
+# Safeguards:
+#   • If no argument and interactive TTY, always show a menu and ask for confirmation.
+#   • If not interactive and no argument, abort.
+#   • If the last commit message looks like a version bump, refuse to bump again.
+#   • If the latest tag equals the manifest version, refuse to bump again.
 
 die() { echo "Error: $*" >&2; exit 1; }
-
-command -v git >/dev/null || die "git is required"
-command -v jq  >/dev/null || die "jq is required (mac: brew install jq, win: choco install jq)"
+need() { command -v "$1" >/dev/null || die "'$1' is required (mac: brew install $1, win: choco install $1)"; }
+need git
+need jq
 
 [ -f manifest.json ]                 || die "manifest.json not found (run from repo root)"
 [ -f scripts/package.sh ]            || die "scripts/package.sh missing"
@@ -22,56 +30,125 @@ command -v jq  >/dev/null || die "jq is required (mac: brew install jq, win: cho
 
 chmod +x scripts/bump-*.sh scripts/package.sh || true
 
+# Parse args
+choice="${1:-}"            # patch | minor | major | nobump | (empty)
+push_only="false"
+if [[ "${2:-}" == "--push-only" || "${1:-}" == "--push-only" ]]; then
+  # support either position; normalize
+  if [[ "${1:-}" == "--push-only" ]]; then
+    choice="${2:-}"
+  fi
+  push_only="true"
+fi
+
+# Warn if working tree has unstaged/staged changes
 if ! git diff --quiet || ! git diff --cached --quiet; then
   echo "⚠️  Uncommitted changes detected."
   read -r -p "Continue anyway? [y/N] " ans
   case "${ans:-N}" in y|Y) : ;; *) echo "Aborted."; exit 1;; esac
 fi
 
-CHOICE="${1:-}"
-if [[ -z "$CHOICE" ]]; then
+OLD_VER=$(jq -r '.version' manifest.json)
+[[ "$OLD_VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "manifest.json version '$OLD_VER' is not MAJOR.MINOR.PATCH"
+
+# Compute prospective nexts (for menu display)
+IFS='.' read -r MA MI PA <<< "$OLD_VER"
+NEXT_PATCH="$MA.$MI.$((PA+1))"
+NEXT_MINOR="$MA.$((MI+1)).0"
+NEXT_MAJOR="$((MA+1)).0.0"
+
+# If no arg provided, enforce interactive TTY
+if [[ -z "$choice" ]]; then
+  if [ ! -t 0 ]; then
+    die "No TTY detected and no argument provided. Use: patch | minor | major | nobump [--push-only]"
+  fi
   echo "Select action:"
-  echo "  1) patch  (x.y.Z)"
-  echo "  2) minor  (x.Y.0)"
-  echo "  3) major  (X.0.0)"
-  echo "  4) NO BUMP (keep version; push + package)"
+  echo "  1) patch   ($OLD_VER -> $NEXT_PATCH)"
+  echo "  2) minor   ($OLD_VER -> $NEXT_MINOR)"
+  echo "  3) major   ($OLD_VER -> $NEXT_MAJOR)"
+  echo "  4) NO-BUMP (keep $OLD_VER; push + package${push_only == true && ' [--push-only: skip packaging]' || ''})"
   read -r -p "Enter 1/2/3/4: " n
   case "$n" in
-    1) CHOICE="patch" ;;
-    2) CHOICE="minor" ;;
-    3) CHOICE="major" ;;
-    4) CHOICE="nobump" ;;
+    1) choice="patch" ;;
+    2) choice="minor" ;;
+    3) choice="major" ;;
+    4) choice="nobump" ;;
     *) die "Invalid choice";;
   esac
 fi
 
-OLD_VER=$(jq -r '.version' manifest.json)
-NEW_VER="$OLD_VER"
-
-if [[ "$CHOICE" == "nobump" ]]; then
-  echo "ℹ️  NO-BUMP mode selected: version stays at $OLD_VER"
-else
-  case "$CHOICE" in
-    patch) BUMP=./scripts/bump-patch.sh ;;
-    minor) BUMP=./scripts/bump-minor.sh ;;
-    major) BUMP=./scripts/bump-major.sh ;;
-    *) die "Unknown argument '$CHOICE' (use: patch|minor|major|nobump)";;
-  esac
-
-  echo "➡️  Running $BUMP ..."
-  $BUMP
-  NEW_VER=$(jq -r '.version' manifest.json)
-  echo "📦 Version: $OLD_VER -> $NEW_VER"
+# ----- Double-bump guards -----
+last_msg="$(git log -1 --pretty=%B | tr -d '\r')"
+if [[ "$choice" =~ ^(patch|minor|major)$ ]]; then
+  # Guard A: last commit message already a bump
+  if echo "$last_msg" | grep -Eqi '\b(bump version to|version bump|chore:\s*bump version to)\b'; then
+    die "Last commit looks like a bump already. Refusing to bump again. (Use 'nobump' or make another commit first.)"
+  fi
+  # Guard B: latest tag equals manifest version
+  latest_tag="$(git tag --list 'v*' --sort=-version:refname | head -n1 || true)"
+  latest_tag="${latest_tag#v}"
+  if [[ -n "$latest_tag" && "$latest_tag" == "$OLD_VER" ]]; then
+    die "Latest tag 'v${latest_tag}' already equals manifest version ${OLD_VER}. Refusing to bump again."
+  fi
 fi
+
+confirm() {
+  local label="$1" newv="$2"
+  if [ ! -t 0 ]; then return 0; fi  # non-interactive: skip confirm
+  read -r -p "Proceed with ${label}${newv:+ to $newv}? [y/N] " ans
+  case "${ans:-N}" in y|Y) : ;; *) echo "Aborted."; exit 1;; esac
+}
+
+case "$choice" in
+  nobump)
+    echo "ℹ️  NO-BUMP mode selected (version stays at $OLD_VER)."
+    if [[ "$push_only" == "true" ]]; then
+      confirm "NO-BUMP (push only; skip packaging)" ""
+    else
+      confirm "NO-BUMP (no version change)" ""
+    fi
+    ;;
+
+  patch)
+    confirm "PATCH bump" "$NEXT_PATCH"
+    echo "➡️  Running patch bump ..."
+    ./scripts/bump-patch.sh
+    ;;
+
+  minor)
+    confirm "MINOR bump" "$NEXT_MINOR"
+    echo "➡️  Running minor bump ..."
+    ./scripts/bump-minor.sh
+    ;;
+
+  major)
+    confirm "MAJOR bump" "$NEXT_MAJOR"
+    echo "➡️  Running major bump ..."
+    ./scripts/bump-major.sh
+    ;;
+
+  *)
+    die "Unknown argument '$choice' (use: patch | minor | major | nobump [--push-only])"
+    ;;
+esac
+
+NEW_VER=$(jq -r '.version' manifest.json)
 
 echo "⬆️  Pushing commits..."
 git push
 
-if [[ "$CHOICE" != "nobump" ]]; then
+if [[ "$choice" != "nobump" ]]; then
   echo "⬆️  Pushing tags..."
   git push --tags
 else
   echo "⏭️  Skipping tag push (no-bump mode)."
+fi
+
+if [[ "$choice" == "nobump" && "$push_only" == "true" ]]; then
+  echo "⏭️  Skipping packaging (push-only mode)."
+  echo
+  echo "Reminder: Web Store requires a higher version to accept a new upload."
+  exit 0
 fi
 
 echo "🧰 Packaging ..."
@@ -84,7 +161,7 @@ else
   echo "⚠️  Package script ran, but $ZIP not found. Check scripts/package.sh output."
 fi
 
-if [[ "$CHOICE" == "nobump" ]]; then
+if [[ "$choice" == "nobump" ]]; then
   echo
   echo "⚠️  Reminder: Chrome Web Store requires a higher manifest version to accept a new upload."
   echo "    Use this ZIP for local testing or GitHub artifacts only."
