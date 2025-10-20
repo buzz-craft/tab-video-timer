@@ -69,10 +69,7 @@ Chrome → `chrome://extensions/shortcuts`
 
 ---
 
-## Development
-```bash
-# package a ZIP for Web Store
-./scripts/package.sh
+## Support
 
-# release helper (interactive / bump or nobump)
-./scripts/release.sh
+- Open an issue with steps to reproduce and the page URL:
+https://github.com/buzz-craft/tab-video-timer/issues
