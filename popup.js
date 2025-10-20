@@ -1,153 +1,195 @@
-// /popup.js
-const DEFAULTS = {
-  settings: {
-    prefixPlaying: "⏳",
-    prefixPaused: "⏸",
-    updateIntervalMs: 250,
-    defaultEnabled: false,
-    hideWhenInactive: false,
-    finishedPrefix: "✓ Finished",
-    finishedHoldMs: 0
-  },
-  sites: {}
-};
-const $ = (id) => document.getElementById(id);
+// popup.js
+// Label tweak: show "Enable timer" first when no per-tab override is set (override === null).
+// Functionality unchanged: first click sets override=true for this tab, then toggles.
 
-let activeTab = null;
-let hostname = "";
-let siteEnabled = true;
-let pollTimer = 0;
-let lastHasMedia = false;
+(async () => {
+  // ---------- helpers ----------
+  const $ = (id) => document.getElementById(id);
 
-document.addEventListener("DOMContentLoaded", async () => {
-  activeTab = await getActiveTab();
-  hostname = safeHostname(activeTab?.url || "");
-  $("host").textContent = hostname || "";
+  const els = {
+    host: $("host"),
+    live: $("liveBadge"),
+    muteBtn: $("mute"),
+    muteLabel: $("muteLabel"),
+    toggleSiteBtn: $("toggleSiteBtn"),
+    toggleSiteLabel: $("toggleSiteLabel"),
+    hideInactive: $("hideWhenInactive"),
+    finishedSite: $("finishedEnabledThisSite"),
+    openOptions: $("openOptions"),
+    openShortcuts: $("openShortcuts"),
+  };
 
-  $("openOptions").addEventListener("click", () => { try { chrome.runtime.openOptionsPage(); } catch {} });
-  $("openShortcuts").addEventListener("click", () => { try { chrome.tabs.create({ url: "chrome://extensions/shortcuts" }); } catch {} });
+  const getActiveTab = async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    return tab;
+  };
 
-  await refreshEnabledFromBG();
+  const getHost = (url) => { try { return new URL(url).hostname; } catch { return ""; } };
 
-  $("mute").addEventListener("click", onMute);
-  $("toggleSite").addEventListener("click", onToggleSite);
-  $("hideWhenInactive").addEventListener("change", onToggleHideInactive);
-  $("finishedEnabledThisSite").addEventListener("change", onToggleFinishedThisSite);
-
-  chrome.storage.onChanged.addListener(async (changes, area) => {
-    if (area !== "sync") return;
-    if (changes.sites || changes.settings) await refreshEnabledFromBG();
-  });
-
-  startPolling();
-});
-
-async function refreshEnabledFromBG() {
-  siteEnabled = true;
-  if (!activeTab?.id) return;
-  try {
-    const res = await chrome.runtime.sendMessage({ type: "BG_GET_ENABLED", tabId: activeTab.id });
-    siteEnabled = !!res?.enabled;
-  } catch { siteEnabled = true; }
-  $("toggleSite").textContent = siteEnabled ? "Disable Site" : "Enable Site";
-}
-
-async function readStore() {
-  const data = await chrome.storage.sync.get(["settings", "sites"]);
-  return { settings: { ...DEFAULTS.settings, ...(data.settings || {}) }, sites: data.sites || {} };
-}
-function isSiteEnabledForHost(store, host) {
-  if (!host) return true;
-  const site = store.sites[host] || {};
-  return (site.enabled ?? store.settings.defaultEnabled ?? true);
-}
-async function setSiteEnabled(host, enabled) {
-  const { sites } = await readStore();
-  sites[host] = { ...(sites[host] || {}), enabled: !!enabled };
-  await chrome.storage.sync.set({ sites });
-}
-async function setSiteFinishedEnabled(host, finishedEnabled) {
-  const { sites } = await readStore();
-  sites[host] = { ...(sites[host] || {}), finishedEnabled: !!finishedEnabled };
-  await chrome.storage.sync.set({ sites });
-}
-
-async function onMute() {
-  const btn = $("mute");
-  if (!activeTab?.id || btn.disabled || !siteEnabled || !lastHasMedia) return;
-  btn.classList.add("pending");
-  try {
-    await chrome.runtime.sendMessage({ type: "BG_MUTE_TOGGLE", tabId: activeTab.id });
-    await updateHasMediaAndMuteState();
-  } catch {}
-  finally {
-    btn.classList.remove("pending");
+  // Try old content-script path (safe no-op if not present)
+  async function tryContentScriptToggle(tabId) {
+    try { await chrome.tabs.sendMessage(tabId, { type: "TOGGLE_MUTE" }); return true; } catch { return false; }
   }
-}
 
-async function onToggleSite() {
-  if (!hostname) return;
-  const store = await readStore();
-  const curr = isSiteEnabledForHost(store, hostname);
-  await setSiteEnabled(hostname, !curr);
-  await chrome.action.setBadgeText({ tabId: activeTab.id, text: !curr ? "" : "OFF" });
-  await chrome.action.setBadgeBackgroundColor({ tabId: activeTab.id, color: !curr ? [0,0,0,0] : [128,128,128,255] });
-  await refreshEnabledFromBG();
-  try { await chrome.tabs.sendMessage(activeTab.id, { type: "APPLY_SETTINGS" }); } catch {}
-}
-async function onToggleHideInactive(e) {
-  const { settings } = await readStore();
-  settings.hideWhenInactive = !!e.target.checked;
-  await chrome.storage.sync.set({ settings });
-  try { await chrome.tabs.sendMessage(activeTab.id, { type: "APPLY_SETTINGS" }); } catch {}
-}
-async function onToggleFinishedThisSite(e) {
-  if (!hostname) return;
-  await setSiteFinishedEnabled(hostname, !!e.target.checked);
-  try { await chrome.tabs.sendMessage(activeTab.id, { type: "APPLY_SETTINGS" }); } catch {}
-}
+  // Runs in page with the user gesture from this click (works around Twitch autoplay rules)
+  async function forcePageToggle(tabId) {
+    const [{ result }] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        const media = Array.from(document.querySelectorAll("video,audio"));
+        const anyAudible = media.some(v => !v.muted && v.volume > 0);
+        const wantMute = anyAudible;
 
-function startPolling() {
-  stopPolling();
-  pollTimer = setInterval(updateHasMediaAndMuteState, 1200);
-  updateHasMediaAndMuteState();
-}
-function stopPolling() { if (pollTimer) clearInterval(pollTimer); pollTimer = 0; }
+        const clickIfVisible = (sel) => {
+          const el = document.querySelector(sel);
+          if (el && el.offsetParent !== null) { el.click(); return true; }
+          return false;
+        };
 
-async function updateHasMediaAndMuteState() {
-  if (!activeTab?.id) return;
-  try {
-    const q = await chrome.runtime.sendMessage({ type: "BG_QUERY_MUTE", tabId: activeTab.id });
-    if (q?.ok) {
-      lastHasMedia = !!q.has;
-      setMuteUi({ has: lastHasMedia, muted: !!q.allMuted });
-      return;
+        const onTwitch = /(^|\.)twitch\.tv$/.test(location.hostname);
+        if (onTwitch) {
+          if (!wantMute) {
+            clickIfVisible('[data-a-target="player-overlay-mute-button"]') ||
+            clickIfVisible('[data-a-target="player-unmute-button"]') ||
+            clickIfVisible('[data-a-target="player-mute-unmute-button"]');
+          } else {
+            clickIfVisible('[data-a-target="player-mute-unmute-button"]');
+          }
+        }
+
+        for (const v of media) {
+          try {
+            v.muted = wantMute;
+            if (!wantMute) {
+              if (v.volume === 0) v.volume = 0.5;
+              if (v.paused && v.readyState >= 2) v.play().catch(() => {});
+            }
+          } catch {}
+        }
+
+        const nowAudible = media.some(v => !v.muted && v.volume > 0);
+        return { muted: !nowAudible };
+      },
+    });
+    return result;
+  }
+
+  // UI helpers for the per-tab enable button
+  function setEnableButtonUI(isEnabled) {
+    if (!els.toggleSiteBtn || !els.toggleSiteLabel) return;
+    els.toggleSiteLabel.textContent = isEnabled ? "Disable timer" : "Enable timer";
+    els.toggleSiteBtn.setAttribute("aria-pressed", isEnabled ? "true" : "false");
+  }
+
+  // Ask content script for local override + effective state.
+  // We use override strictly for UI: if override is null => show "Enable timer".
+  async function queryTabEnable(tabId) {
+    try {
+      const res = await chrome.tabs.sendMessage(tabId, { type: "GET_LOCAL_ENABLED" });
+      const override = res?.override ?? null;
+      const effective = !!res?.effective;
+      // UI should show "Enable timer" when override is unset (null)
+      const enabledForLabel = (override === null) ? false : !!override;
+      return { ok: true, enabledForLabel, override, effective };
+    } catch {
+      return { ok: false, enabledForLabel: false, override: null, effective: false };
     }
-  } catch {}
-  lastHasMedia = false;
-  setMuteUi({ has: false, muted: false });
-}
-
-function setMuteUi({ has, muted }) {
-  const btn = $("mute");
-  const label = document.getElementById("muteLabel");
-
-  const enabled = !!siteEnabled && !!has;
-  btn.disabled = !enabled;
-  btn.classList.toggle("muted", !!muted);
-  btn.classList.toggle("nomedia", !has);
-  btn.setAttribute("aria-pressed", String(!!muted));
-  btn.setAttribute("aria-disabled", String(!enabled));
-
-  if (!has) {
-    btn.title = "No media detected on this page";
-    if (label) label.textContent = "No media";
-  } else {
-    btn.title = muted ? "Unmute current media" : "Mute current media";
-    if (label) label.textContent = muted ? "Unmute" : "Mute";
   }
-}
 
-// utils
-async function getActiveTab() { const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }); return tab || null; }
-function safeHostname(u) { try { return new URL(u).hostname; } catch { return ""; } }
+  async function setTabEnable(tabId, enabled) {
+    try {
+      await chrome.tabs.sendMessage(tabId, { type: "SET_LOCAL_ENABLED", enabled: !!enabled });
+      return { ok: true };
+    } catch {
+      return { ok: false };
+    }
+  }
+
+  async function updateMuteLabel(finalMuted) {
+    if (!els.muteLabel || !els.muteBtn) return;
+    els.muteLabel.textContent = finalMuted ? "Unmute" : "Mute";
+    els.muteBtn.setAttribute("aria-pressed", finalMuted ? "true" : "false");
+  }
+
+  // ---------- init ----------
+  const tab = await getActiveTab();
+  const host = getHost(tab?.url || "");
+  if (els.host) els.host.textContent = host.replace(/^www\./, "") || "";
+
+  // Default UI before we learn anything: show "Enable timer"
+  setEnableButtonUI(false);
+
+  // Initialize Enable/Disable button from current tab state (using override for the label)
+  {
+    const q = await queryTabEnable(tab.id);
+    setEnableButtonUI(q.enabledForLabel);
+  }
+
+  // ---------- wire buttons ----------
+  if (els.muteBtn) {
+    els.muteBtn.addEventListener("click", async () => {
+      if (!tab?.id) return;
+      await tryContentScriptToggle(tab.id);
+      const res = await forcePageToggle(tab.id);
+      await updateMuteLabel(res?.muted ?? false);
+    });
+  }
+
+  if (els.toggleSiteBtn) {
+    els.toggleSiteBtn.addEventListener("click", async () => {
+      if (!tab?.id) return;
+      const current = await queryTabEnable(tab.id);
+      const next = !current.enabledForLabel; // if UI shows "Enable", clicking sets true
+      await setTabEnable(tab.id, next);
+      setEnableButtonUI(next);
+    });
+  }
+
+  // Preferences (still global/site-level; optional to use)
+  if (els.hideInactive) {
+    els.hideInactive.addEventListener("change", async () => {
+      const { settings = {} } = await chrome.storage.sync.get(["settings"]);
+      await chrome.storage.sync.set({ settings: { ...settings, hideWhenInactive: !!els.hideInactive.checked } });
+      try { await chrome.tabs.sendMessage(tab.id, { type: "APPLY_SETTINGS" }); } catch {}
+    });
+  }
+  if (els.finishedSite) {
+    els.finishedSite.addEventListener("change", async () => {
+      const { sites = {}, settings = {} } = await chrome.storage.sync.get(["sites", "settings"]);
+      const canon = host.toLowerCase().replace(/^www\./, "");
+      const entry = (sites[canon] || { enabled: settings.defaultEnabled ?? true, finishedEnabled: true });
+      await chrome.storage.sync.set({ sites: { ...sites, [canon]: { ...entry, finishedEnabled: !!els.finishedSite.checked } } });
+      try { await chrome.tabs.sendMessage(tab.id, { type: "APPLY_SETTINGS" }); } catch {}
+    });
+  }
+
+  if (els.openOptions) els.openOptions.addEventListener("click", () => chrome.runtime.openOptionsPage());
+  if (els.openShortcuts) els.openShortcuts.addEventListener("click", () => chrome.tabs.create({ url: "chrome://extensions/shortcuts" }));
+
+  // Initial mute label
+  try {
+    const [{ result }] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        const media = Array.from(document.querySelectorAll("video,audio"));
+        const anyAudible = media.some(v => !v.muted && v.volume > 0);
+        return { muted: !anyAudible };
+      },
+    });
+    await updateMuteLabel(result?.muted ?? false);
+  } catch {}
+
+  setTimeout(async () => {
+    try {
+      const [{ result }] = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          const media = Array.from(document.querySelectorAll("video,audio"));
+          const anyAudible = media.some(v => !v.muted && v.volume > 0);
+          return { muted: !anyAudible };
+        },
+      });
+      await updateMuteLabel(result?.muted ?? false);
+    } catch {}
+  }, 700);
+})();
