@@ -11,7 +11,7 @@ No tracking. Settings stay in your browser (Chrome Sync optional).
 
 ## Features
 - ⏳ **Time left** in the tab title (VOD: Playing / Paused)
-- 🔴 **Live elapsed** time in the tab title (YouTube + Twitch), with guards against bad timestamps/DVR quirks
+- ⏳ **Live elapsed** time in the tab title (YouTube + Twitch), with guards against bad timestamps/DVR quirks
 - 🔇 **One-click Mute/Unmute** across iframes
 - ⚙️ **Per-site enable/disable** and **“Finished” banner** controls
 - 🧰 Options for prefixes, finished hold, site overrides
@@ -32,8 +32,6 @@ Or install unpacked (developers):
 ## Usage
 1. Pin the extension
 2. Open a page with video/audio  
-   - VOD: tab shows `⏳ 12:34 — Title` (or `⏸` when paused)  
-   - LIVE: tab shows `🔴 LIVE 1:23:45 — Title`
 3. Click the icon for **Mute/Unmute**, **Enable/Disable timer**, and quick site toggles
 4. **Options** page allows “Finished” banner hold (including **Forever** with `0 ms`) and per-site rules
 
