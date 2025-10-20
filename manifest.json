@@ -3,7 +3,7 @@
   "name": "Tab Video Timer",
   "short_name": "Video Timer",
   "version": "1.1.0",
-  "description": "Shows remaining time in the tab title for videos and audio. Live streams display elapsed time. Popup offers quick mute and per-site controls (YouTube + Twitch).",
+  "description": "Tab title timers for video/audio: countdown for VOD, elapsed for LIVE. Quick mute and per-site controls. No tracking.",
   "icons": {
     "16": "icon16.png",
     "48": "icon48.png",
@@ -31,17 +31,11 @@
   "options_page": "options.html",
   "commands": {
     "mute-active": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+M",
-        "mac": "Command+Shift+M"
-      },
+      "suggested_key": { "default": "Ctrl+Shift+M", "mac": "Command+Shift+M" },
       "description": "Toggle mute on the active page's playing media"
     },
     "toggle-site": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+T",
-        "mac": "Command+Shift+T"
-      },
+      "suggested_key": { "default": "Ctrl+Shift+T", "mac": "Command+Shift+T" },
       "description": "Enable/Disable the extension for this site"
     }
   },
