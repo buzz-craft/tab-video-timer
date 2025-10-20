@@ -1,36 +1,78 @@
 # Tab Video Timer
 
-Shows remaining time in the tab title, quick Mute/Unmute, and per-site controls.
+Adds a mini timer to your **tab title**:
+- **VOD:** time remaining (Playing/Paused)
+- **LIVE (YouTube/Twitch):** elapsed time (count-up)
+
+Quick **Mute/Unmute**, per-site toggles, and a simple Options page.
+No tracking. Settings stay in your browser (Chrome Sync optional).
+
+---
 
 ## Features
-- Time left in the **tab title** (Playing/Paused)
-- One-click **Mute/Unmute** across iframes
-- Per-site enable/disable + “Finished” banner control
-- No tracking; settings stored locally (Chrome Sync optional)
+- ⏳ **Time left** in the tab title (VOD: Playing / Paused)
+- 🔴 **Live elapsed** time in the tab title (YouTube + Twitch), with guards against bad timestamps/DVR quirks
+- 🔇 **One-click Mute/Unmute** across iframes
+- ⚙️ **Per-site enable/disable** and **“Finished” banner** controls
+- 🧰 Options for prefixes, finished hold, site overrides
+- 🔒 **No tracking**; settings in `chrome.storage.(sync|local)`
+
+---
 
 ## Install (for users)
-- **Chrome Web Store:** _link coming soon_  
-  *(Or load unpacked for development; see below.)*
+- **Chrome Web Store:** https://chromewebstore.google.com/detail/tab-video-timer/hdkokdinnckanaahfjnofhccmghmoekc
 
-## Install (unpacked, developers)
+Or install unpacked (developers):
 1. Go to `chrome://extensions`
 2. Enable **Developer mode**
-3. Click **Load unpacked** → select this folder
+3. Click **Load unpacked** → select this repo folder
+
+---
 
 ## Usage
-- Pin the extension → open a page with media
-- Watch countdown in the **tab title**
-- Click the icon for **Mute/Unmute** & per-site toggles
-- Configure in **Options**
+1. Pin the extension
+2. Open a page with video/audio  
+   - VOD: tab shows `⏳ 12:34 — Title` (or `⏸` when paused)  
+   - LIVE: tab shows `🔴 LIVE 1:23:45 — Title`
+3. Click the icon for **Mute/Unmute**, **Enable/Disable timer**, and quick site toggles
+4. **Options** page allows “Finished” banner hold (including **Forever** with `0 ms`) and per-site rules
 
-## Permissions
-- `storage` – save settings and site preferences
-- `tabs` – read hostname for per-site rules
-- `scripting` + `host_permissions` – detect/mute media elements across frames
+---
+
+## Keyboard Shortcuts (configurable)
+- **Mute active tab:** `Ctrl+Shift+M` (Windows/Linux), `⌘⇧M` (macOS)  
+- **Toggle site on/off:** `Ctrl+Shift+T`, `⌘⇧T`  
+Chrome → `chrome://extensions/shortcuts`
+
+---
+
+## Permissions (why we need them)
+- `storage` — save your settings + per-site preferences
+- `tabs` — read the active **hostname** for per-site rules
+- `scripting` — inject a small content script to find/mute media and update the tab title
+- `host_permissions: <all_urls>` — run on sites **you visit** so timers/mute work everywhere media plays
+
+> No external network calls. No analytics.
+
+---
+
+## Troubleshooting
+- **Live timer looks off by ~1 hour:** some pages expose wrong start timestamps. We prefer the **live edge** and only accept page timestamps if they’re close. If a specific channel looks wrong, open an issue with the URL and whether it’s **Premiere** or **DVR-only**.
+- **Timer flickers or stays paused:** some players delay metadata. It should stabilize after a few seconds. If not, refresh the page.
+- **Icons don’t show:** ensure `icon16.png`, `icon48.png`, `icon128.png` exist in the root of the extension folder.
+
+---
 
 ## Privacy
 - No analytics, no tracking, no external requests.  
-- Data stays in the browser (Chrome Sync optional).
+- Settings are stored in Chrome Sync/Local only.
 
-## Support
-- Open an issue on GitHub with steps to reproduce.
+---
+
+## Development
+```bash
+# package a ZIP for Web Store
+./scripts/package.sh
+
+# release helper (interactive / bump or nobump)
+./scripts/release.sh
