@@ -5,3 +5,7 @@
 # Build artifacts
 /dist/
 *.zip
+
+# Build artifacts
+/dist/
+*.zip
