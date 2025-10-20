@@ -5,7 +5,6 @@ Format inspired by Keep a Changelog. Versioning: SemVer.
 ## 1.1.0 — 2025-10-20
 ### User-facing
 - **Live streams (YouTube + Twitch):** show **elapsed time (count-up)** in the tab title. Uses safe fallbacks (live edge / UI labels / platform start) with sanity checks to avoid “+1 hour” and other clock drift. Pauses freeze the live timer display.
-- **Action badge:** shows a red **LIVE** badge when a tab is on a live stream.
 - **Popup improvements:** resilient **Mute/Unmute** across frames, clearer **Enable/Disable timer** per-tab label, quick per-site “Finished” toggle, and buttons for **Options** and **Shortcuts**.
 - **Options improvements:** “Finished” can be **Forever** (0 ms), and your last non-zero ms value is preserved. Per-site controls are clearer.  
 - **YouTube DVR guard:** avoids the classic **59:59** false duration right after navigation/reload.
