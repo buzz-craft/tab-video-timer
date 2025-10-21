@@ -4,34 +4,25 @@ Format inspired by Keep a Changelog. Versioning: SemVer.
 
 ## 1.1.1 — 2025-10-21
 ### Fixed
-- **Service worker crash**: `background.js` tail listener had a truncated line causing
-  “Service worker registration failed (code 15)”. Replaced with a complete,
-  safe `tabs.onUpdated`/`tabs.onRemoved` pair for cleanup stability.
-- **Options page load**: `options.html` had a malformed `<script>` tag and an outdated title.
-  Fixed the tag and unified the title with the extension name.
-- **Popup ↔ content wiring**: `content.js` now implements `GET_LOCAL_ENABLED` and
-  `SET_LOCAL_ENABLED` message handlers so the popup can read/apply per-tab enable
-  state immediately. This resolves cases where the popup wouldn’t reflect or apply
-  the current tab’s setting.
+- **Service worker crash:** `background.js` tail listener was truncated, causing registration failures.
+- **Options page load:** malformed `<script>` tag and outdated title in `options.html`.
+- **Popup ↔ content wiring:** `content.js` now handles `GET_LOCAL_ENABLED` / `SET_LOCAL_ENABLED` for per-tab enable state.
 
-### Notes
-- No new permissions.
-- User-facing behavior unchanged except better reliability for per-tab toggles and Options loading.
+### Internal / Tooling
+- **release.sh bump guard:** stop refusing bumps when the latest tag equals the *current* manifest version; only refuse if the **target tag** already exists. Also supports `nobump` and `--push-only`.
+- (Optional) Thin wrappers `bump-{patch,minor,major}.sh` delegate to `release.sh`.
 
 ## 1.1.0 — 2025-10-20
 ### User-facing
-- **Live streams (YouTube + Twitch):** show **elapsed time (count-up)** in the tab title.
-  Uses safe fallbacks (live edge / UI labels / platform start) with sanity checks
-  to avoid “+1 hour” and DVR quirks. Pauses freeze the display.
-- **LIVE badge:** shows a live indicator on the extension action.
-- **Popup improvements:** resilient **Mute/Unmute**, clearer per-tab Enable/Disable,
-  quick per-site “Finished” toggle, and shortcuts/Options buttons.
-- **Options improvements:** “Finished” can be **Forever** (0 ms), last non-zero ms is preserved.
-- **YouTube DVR guard:** avoids **59:59** false duration after reload.
+- **Live streams (YouTube + Twitch):** show **elapsed time (count-up)** in the tab title with guards against bad timestamps/DVR quirks. Pauses freeze the display.
+- **LIVE badge** on the action icon.
+- **Popup**: resilient Mute/Unmute, clearer per-tab Enable/Disable, quick per-site “Finished”, Options/Shortcuts buttons.
+- **Options**: “Finished” can be **Forever** (0 ms) and preserves your last non-zero value.
+- **YouTube DVR guard:** avoids the **59:59** false duration after reload.
 
 ### Internal / Stability
 - Better SPA navigation handling and metadata re-probing.
-- Non-breaking; no new permissions.
+- No new permissions.
 
 ## 1.0.1 — 2025-10-15
 ### User-facing
@@ -51,6 +42,3 @@ Format inspired by Keep a Changelog. Versioning: SemVer.
 
 ### Internal / Tooling
 - Initial packaging script.
-
-## Unreleased
-- (add upcoming changes here)
