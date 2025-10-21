@@ -826,7 +826,45 @@ if (window.top === window.self) {
 
     window.addEventListener("beforeunload", () => { try { stopObservers(); } catch {} });
 
-    // ---- identity helper (kept last to avoid hoist noise) ----
+    // ---- Per-tab enable/override message API for popup ----
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  try {
+    if (!msg || typeof msg !== "object") return;
+
+    if (msg.type === "GET_LOCAL_ENABLED") {
+      // localEnabledOverride can be: true | false | null
+      // effective = what the content script is currently using
+      sendResponse({
+        ok: true,
+        override: (localEnabledOverride === null ? null : !!localEnabledOverride),
+        effective: !!enabledForHost
+      });
+      return;
+    }
+
+    if (msg.type === "SET_LOCAL_ENABLED") {
+      localEnabledOverride = !!msg.enabled;
+      computeEnabledFlags(); // recompute effective flags immediately
+      // If disabling, restore the title right away
+      if (!enabledForHost) restoreTitleOnceIfDecorated();
+      sendResponse({ ok: true });
+      return;
+    }
+
+    if (msg.type === "APPLY_SETTINGS") {
+      // Settings changed from Options — reload in place
+      loadSettings().then(() => {
+        computeEnabledFlags();
+        // Nudge the next tick so UI updates promptly
+        setTimeout(() => { try { tick(); } catch {} }, 0);
+      });
+      sendResponse({ ok: true });
+      return;
+    }
+  } catch {}
+});
+
+// ---- identity helper (kept last to avoid hoist noise) ----
     function currentTwitchStreamIdentity() {
       if (!isTwitch()) return "";
       const channel = twitchChannelLogin(); // stable across SPA

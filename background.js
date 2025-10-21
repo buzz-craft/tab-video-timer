@@ -130,10 +130,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   return true;
 });
 
-chrome.tabs.onRemoved.addListener((tabId) => { liveStateByTab.delete(tabId); });
 chrome.tabs.onUpdated.addListener((tabId, info) => {
   if (info.status === "loading") liveStateByTab.delete(tabId);
 });
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  liveStateByTab.delete(tabId);
+});
+
 chrome.tabs.onActivated.addListener(({ tabId }) => {
   const live = liveStateByTab.get(tabId) || false;
   setBadge(tabId, live);
