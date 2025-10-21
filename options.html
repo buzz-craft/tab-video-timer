@@ -11,22 +11,30 @@
     <h1>Tab Video Timer</h1>
 
     <section>
-      <h2>General</h2>
+      <h2>Display</h2>
+
       <form id="form" autocomplete="off">
-        <label>
-          Playing prefix
-          <input id="prefixPlaying" type="text" maxlength="10" placeholder="⏳" />
-        </label>
+        <fieldset class="grid-2">
+          <label>
+            Live Icon
+            <input id="prefixLivePlaying" type="text" maxlength="20" placeholder="🔴 LIVE" />
+          </label>
 
-        <label>
-          Paused prefix
-          <input id="prefixPaused" type="text" maxlength="10" placeholder="⏸" />
-        </label>
+          <label>
+            VOD Icon
+            <input id="prefixVODPlaying" type="text" maxlength="20" placeholder="⏳" />
+          </label>
 
-        <label>
-          Finished text
-          <input id="finishedPrefix" type="text" maxlength="20" placeholder="✓ Finished" />
-        </label>
+          <label>
+            Paused Icon
+            <input id="prefixPaused" type="text" maxlength="20" placeholder="⏸" />
+          </label>
+
+          <label>
+            Finished text
+            <input id="finishedPrefix" type="text" maxlength="30" placeholder="✓ Finished" />
+          </label>
+        </fieldset>
 
         <label>
           Finished hold (ms)
@@ -40,31 +48,29 @@
           <span class="hint" id="finishedHoldHint">Set 0 to keep “Finished” indefinitely</span>
         </label>
 
-        <label>
-          Update interval (ms)
-          <input id="updateIntervalMs" type="number" min="100" step="50" />
-        </label>
+        <fieldset class="grid-2">
+          <label>
+            Update interval (ms)
+            <input id="updateIntervalMs" type="number" min="100" step="50" />
+          </label>
 
-        <label class="row">
-          <input id="defaultEnabled" type="checkbox" />
-          <span>Enable by default on new sites</span>
-        </label>
+          <label class="row">
+            <input id="hideWhenInactive" type="checkbox" />
+            <span>Hide timer when tab is inactive</span>
+          </label>
+        </fieldset>
 
-        <label class="row">
-          <input id="hideWhenInactive" type="checkbox" />
-          <span>Hide timer when tab is inactive</span>
-        </label>
+        <fieldset class="grid-2">
+          <label class="row">
+            <input id="defaultEnabled" type="checkbox" />
+            <span>Enable by default on new sites</span>
+          </label>
 
-        <!-- Live options -->
-        <label class="row">
-          <input id="liveShowElapsed" type="checkbox" />
-          <span>For live streams, show elapsed time (count-up) in the tab title</span>
-        </label>
-
-        <label class="row">
-          <input id="livePreferPlatformStart" type="checkbox" />
-          <span>Prefer platform-reported live start time (when available)</span>
-        </label>
+          <label class="row">
+            <input id="liveShowElapsed" type="checkbox" />
+            <span>For live streams, show elapsed time (count-up) in the tab title</span>
+          </label>
+        </fieldset>
 
         <div class="buttons">
           <button type="button" id="save">Save</button>
@@ -95,12 +101,12 @@
         <summary>Managed Sites</summary>
         <table id="sitesTable">
           <thead>
-            <tr>
-              <th>Hostname</th>
-              <th>Enabled</th>
-              <th>Finished banner</th>
-              <th>Actions</th>
-            </tr>
+          <tr>
+            <th>Hostname</th>
+            <th>Enabled</th>
+            <th>Finished</th>
+            <th>Actions</th>
+          </tr>
           </thead>
           <tbody></tbody>
         </table>
@@ -109,9 +115,10 @@
 
     <section>
       <h2>Shortcuts</h2>
-      <p>Set keyboard shortcuts at <code>chrome://extensions/shortcuts</code>.</p>
+      <p>Configure at <code>chrome://extensions/shortcuts</code> (Mute active tab, Enable/Disable on this site).</p>
     </section>
   </main>
+
   <script src="options.js"></script>
 </body>
 </html>

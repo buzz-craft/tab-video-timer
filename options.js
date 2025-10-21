@@ -1,271 +1,270 @@
-// /options.js
-const DEFAULTS = {
-  settings: {
-    prefixPlaying: "⏳",
+// options.js
+// Exposes separate prefixes: prefixLivePlaying, prefixVODPlaying (paused shared via prefixPaused).
+// Migrates from legacy `prefixPlaying` on load (UI only) until user clicks Save.
+
+(() => {
+  const DEFAULTS = {
+    prefixPlaying: "⏳",           // legacy fallback (kept for migration)
+    prefixLivePlaying: "🔴 LIVE",
+    prefixVODPlaying: "⏳",
     prefixPaused: "⏸",
+    finishedPrefix: "✓ Finished",
+    finishedHoldMs: 0,
     updateIntervalMs: 250,
     defaultEnabled: false,
     hideWhenInactive: false,
-    finishedPrefix: "✓ Finished",
-    finishedHoldMs: 0, // 0 = forever
+    liveShowElapsed: true
+  };
 
-    // Always on (no UI)
-    liveTreatAsMedia: true,
+  // DOM helpers
+  const $ = (id) => document.getElementById(id);
 
-    // Still configurable
-    liveShowElapsed: true,
-    livePreferPlatformStart: true
-  },
-  sites: {}
-};
+  // Canonicalize host names like content.js does
+  const canonicalHost = (h) => {
+    const host = (h || "").toLowerCase();
+    if (host.endsWith(".youtube.com") || host === "youtube.com" || host === "youtu.be") return "youtube.com";
+    if (host.endsWith(".twitch.tv") || host === "twitch.tv") return "twitch.tv";
+    return host;
+  };
 
-const UI_CACHE_KEY = "uiCachedHoldMs";
+  let settings = { ...DEFAULTS };
+  let sites = {};             // as stored (raw)
+  let currentHost = "";       // raw current tab host
 
-function $(id) { return document.getElementById(id); }
-function setStatus(msg, ok = true) {
-  const el = $("status"); if (!el) return;
-  el.textContent = msg; el.style.color = ok ? "inherit" : "#b00020";
-}
+  // ---- UI wiring ----
+  async function init() {
+    await loadAll();
+    seedCurrentHostFromActiveTab();
+    renderForm();
+    renderSitesTable();
 
-async function getActiveHostname() {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    return tab?.url ? new URL(tab.url).hostname : "";
-  } catch { return ""; }
-}
-function readNumeric(id, fallback, { min = -Infinity, max = Infinity } = {}) {
-  const raw = Number($(id).value);
-  if (!Number.isFinite(raw)) return fallback;
-  return Math.max(min, Math.min(max, raw));
-}
-async function cacheHoldMs(value) {
-  const num = Number(value);
-  if (Number.isFinite(num) && num > 0) await chrome.storage.local.set({ [UI_CACHE_KEY]: num });
-}
-function updateHoldHint() {
-  const forever = $("finishedHoldForever").checked;
-  const ms = readNumeric("finishedHoldMs", 8000, { min: 0 });
-  const hint = $("finishedHoldHint");
-  if (forever) hint.textContent = "Forever (saved as 0 ms). The box keeps your last non-zero value.";
-  else if (ms === 0) hint.textContent = "0 ms means forever.";
-  else {
-    const s = Math.round(ms / 1000);
-    const human = s >= 3600 ? `${(s/3600).toFixed(1)} h` : s >= 60 ? `${Math.round(s/60)} min` : `${s} s`;
-    hint.textContent = `Will display for ${ms} ms (~${human})`;
-  }
-}
+    // Events
+    $("save").addEventListener("click", onSave);
+    $("reset").addEventListener("click", onResetDefaults);
+    $("toggleSite").addEventListener("click", onToggleSite);
+    $("applySitePrefs").addEventListener("click", onApplySitePrefs);
 
-/* Load */
-async function load() {
-  try {
-    const [{ settings: s0, sites }, cache] = await Promise.all([
-      chrome.storage.sync.get(["settings", "sites"]),
-      chrome.storage.local.get([UI_CACHE_KEY])
-    ]);
-    const s = { ...DEFAULTS.settings, ...(s0 || {}) };
-
-    // Force liveTreatAsMedia ON (no UI)
-    s.liveTreatAsMedia = true;
-
-    const cachedHold = Number.isFinite(cache[UI_CACHE_KEY]) ? cache[UI_CACHE_KEY] : 8000;
-
-    $("prefixPlaying").value = s.prefixPlaying;
-    $("prefixPaused").value = s.prefixPaused;
-    $("finishedPrefix").value = s.finishedPrefix;
-
-    const showMs = s.finishedHoldMs === 0 ? cachedHold : s.finishedHoldMs;
-    $("finishedHoldMs").value = String(showMs);
-    $("finishedHoldForever").checked = s.finishedHoldMs === 0;
-    $("finishedHoldMs").disabled = s.finishedHoldMs === 0;
-
-    $("updateIntervalMs").value = String(s.updateIntervalMs);
-    $("defaultEnabled").checked = !!s.defaultEnabled;
-    $("hideWhenInactive").checked = !!s.hideWhenInactive;
-
-    // Keep these live controls
-    $("liveShowElapsed").checked = !!s.liveShowElapsed;
-    $("livePreferPlatformStart").checked = !!s.livePreferPlatformStart;
-
-    const host = (await getActiveHostname()) || "";
-    $("currentHost").value = host;
-    $("finishedEnabledThisSite").checked = (sites?.[host]?.finishedEnabled ?? true);
-
-    renderSites(sites || {});
-    updateHoldHint();
-    setStatus("Loaded ✓");
-  } catch (e) {
-    console.error(e);
-    setStatus("Failed to load options", false);
-  }
-}
-
-/* Save/Reset */
-async function save() {
-  try {
-    const forever = $("finishedHoldForever").checked;
-    const currentBoxMs = readNumeric("finishedHoldMs", 8000, { min: 0 });
-    if (currentBoxMs > 0) await cacheHoldMs(currentBoxMs);
-
-    const settings = {
-      prefixPlaying: $("prefixPlaying").value || "⏳",
-      prefixPaused: $("prefixPaused").value || "⏸",
-      finishedPrefix: $("finishedPrefix").value || "✓ Finished",
-      finishedHoldMs: forever ? 0 : currentBoxMs,
-      updateIntervalMs: readNumeric("updateIntervalMs", 250, { min: 100 }),
-      defaultEnabled: $("defaultEnabled").checked,
-      hideWhenInactive: $("hideWhenInactive").checked,
-
-      // Force ON (no toggle in UI)
-      liveTreatAsMedia: true,
-
-      // Keep these configurable
-      liveShowElapsed: $("liveShowElapsed").checked,
-      livePreferPlatformStart: $("livePreferPlatformStart").checked
+    // Keep hint text consistent with the number input
+    const holdMs = $("finishedHoldMs");
+    const hint = $("finishedHoldHint");
+    const forever = $("finishedHoldForever");
+    const syncHint = () => {
+      const val = Number(holdMs.value || 0);
+      hint.textContent = val === 0 ? "Set 0 to keep “Finished” indefinitely"
+                                   : `Currently: ${val} ms (set 0 for Forever)`;
     };
-
-    await chrome.storage.sync.set({ settings });
-    await notifyActive("APPLY_SETTINGS");
-    setStatus("Saved ✓");
-  } catch (e) {
-    console.error(e);
-    setStatus("Save failed", false);
+    holdMs.addEventListener("input", syncHint);
+    forever.addEventListener("change", () => {
+      // Do not overwrite the numeric box; only affect how we save
+      syncHint();
+    });
+    syncHint();
   }
-}
-async function reset() {
-  try {
-    await chrome.storage.sync.set(DEFAULTS);
-    await chrome.storage.local.set({ [UI_CACHE_KEY]: 8000 });
-    await load();
-    await notifyActive("APPLY_SETTINGS");
-    setStatus("Reset to defaults ✓");
-  } catch (e) {
-    console.error(e);
-    setStatus("Reset failed", false);
-  }
-}
 
-/* Sites table */
-function renderSites(sites) {
-  const tbody = document.querySelector("#sitesTable tbody");
-  tbody.innerHTML = "";
-  const entries = Object.entries(sites || {});
-  if (!entries.length) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="4">No site overrides yet.</td>`;
-    tbody.appendChild(tr);
-    return;
-  }
-  for (const [host, { enabled = true, finishedEnabled = true }] of entries.sort()) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${host}</td>
-      <td>${enabled ? "Enabled" : "Disabled"}</td>
-      <td>${finishedEnabled ? "On" : "Off"}</td>
-      <td>
-        <button data-host="${host}" data-action="toggle">${enabled ? "Disable" : "Enable"}</button>
-        <button data-host="${host}" data-action="toggle-finished">${finishedEnabled ? "Hide Finished" : "Show Finished"}</button>
-        <button data-host="${host}" data-action="remove">Remove</button>
-      </td>`;
-    tbody.appendChild(tr);
-  }
-  tbody.addEventListener("click", onSitesAction, { once: true });
-}
-async function onSitesAction(e) {
-  const btn = e.target.closest("button"); if (!btn) return;
-  try {
-    const host = btn.dataset.host, action = btn.dataset.action;
-    const store = await chrome.storage.sync.get(["sites"]);
-    const sites = store.sites || {};
-    const cur = sites[host] || { enabled: true, finishedEnabled: true };
+  async function loadAll() {
+    const { settings: storedSettings = {}, sites: storedSites = {} } =
+      await chrome.storage.sync.get(["settings", "sites"]);
 
-    if (action === "toggle") cur.enabled = !cur.enabled;
-    else if (action === "toggle-finished") cur.finishedEnabled = !(cur.finishedEnabled ?? true);
-    else if (action === "remove") { delete sites[host]; await chrome.storage.sync.set({ sites }); renderSites(sites); await notifyActive("APPLY_SETTINGS"); setStatus(`Removed ${host} ✓`); return; }
+    // Merge defaults
+    settings = { ...DEFAULTS, ...storedSettings };
 
-    sites[host] = cur;
-    await chrome.storage.sync.set({ sites });
-    renderSites(sites);
-    await notifyActive("APPLY_SETTINGS");
-    setStatus("Updated site overrides ✓");
-  } catch (e2) {
-    console.error(e2);
-    setStatus("Site update failed", false);
-  }
-}
-
-/* Notify active tab */
-async function notifyActive(type) {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id) return;
-    await chrome.tabs.sendMessage(tab.id, { type });
-  } catch {}
-}
-
-/* Wire */
-document.addEventListener("DOMContentLoaded", () => {
-  load();
-
-  document.getElementById("save").addEventListener("click", (e) => { e.preventDefault(); save(); });
-  document.getElementById("reset").addEventListener("click", (e) => { e.preventDefault(); reset(); });
-
-  document.getElementById("toggleSite").addEventListener("click", async (e) => {
-    e.preventDefault();
-    try {
-      const host = document.getElementById("currentHost").value.trim();
-      if (!host) return;
-      const store = await chrome.storage.sync.get(["sites"]);
-      const sites = store.sites || {};
-      const entry = sites[host] || { enabled: true, finishedEnabled: true };
-      entry.enabled = !entry.enabled;
-      sites[host] = entry;
-      await chrome.storage.sync.set({ sites });
-      renderSites(sites);
-      await notifyActive("APPLY_SETTINGS");
-      setStatus(`${entry.enabled ? "Enabled" : "Disabled"} ${host} ✓`);
-    } catch (err) {
-      console.error(err);
-      setStatus("Toggle failed", false);
-    }
-  });
-
-  document.getElementById("applySitePrefs").addEventListener("click", async (e) => {
-    e.preventDefault();
-    try {
-      const host = document.getElementById("currentHost").value.trim();
-      if (!host) return;
-      const store = await chrome.storage.sync.get(["sites"]);
-      const sites = store.sites || {};
-      const entry = sites[host] || { enabled: true, finishedEnabled: true };
-      entry.finishedEnabled = document.getElementById("finishedEnabledThisSite").checked;
-      sites[host] = entry;
-      await chrome.storage.sync.set({ sites });
-      renderSites(sites);
-      await notifyActive("APPLY_SETTINGS");
-      setStatus(`Applied site prefs for ${host} ✓`);
-    } catch (err) {
-      console.error(err);
-      setStatus("Apply failed", false);
-    }
-  });
-
-  document.getElementById("finishedHoldForever").addEventListener("change", async () => {
-    const forever = document.getElementById("finishedHoldForever").checked;
-    const msBox = document.getElementById("finishedHoldMs");
-    if (!forever) {
-      const cache = await chrome.storage.local.get([UI_CACHE_KEY]);
-      const cached = Number.isFinite(cache[UI_CACHE_KEY]) ? cache[UI_CACHE_KEY] : 8000;
-      if (Number(msBox.value) === 0 || msBox.value === "" || !Number.isFinite(Number(msBox.value))) {
-        msBox.value = String(cached);
+    // ---- Migration logic (UI only; save happens on user action) ----
+    // If new keys are missing but legacy prefixPlaying exists, surface it in both fields.
+    if (storedSettings.prefixLivePlaying == null && storedSettings.prefixVODPlaying == null) {
+      if (typeof storedSettings.prefixPlaying === "string" && storedSettings.prefixPlaying.trim()) {
+        settings.prefixLivePlaying = storedSettings.prefixPlaying;
+        settings.prefixVODPlaying  = storedSettings.prefixPlaying;
       }
     }
-    msBox.disabled = forever;
-    updateHoldHint();
-  });
 
-  document.getElementById("finishedHoldMs").addEventListener("input", async () => {
-    const ms = Number(document.getElementById("finishedHoldMs").value);
-    if (Number.isFinite(ms) && ms > 0) await chrome.storage.local.set({ [UI_CACHE_KEY]: ms });
-    updateHoldHint();
-  });
-});
+    sites = { ...storedSites };
+  }
+
+  function seedCurrentHostFromActiveTab() {
+    try {
+      chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+        const url = tabs?.[0]?.url || "";
+        try {
+          const u = new URL(url);
+          currentHost = u.hostname || "";
+        } catch {
+          currentHost = "";
+        }
+        $("currentHost").value = currentHost;
+        // Preload finished checkbox from stored sites if present
+        const site = sites[canonicalHost(currentHost)] || sites[currentHost] || {};
+        $("finishedEnabledThisSite").checked = site.finishedEnabled ?? true;
+      });
+    } catch {
+      // ignore
+    }
+  }
+
+  function renderForm() {
+    $("prefixLivePlaying").value = settings.prefixLivePlaying ?? DEFAULTS.prefixLivePlaying;
+    $("prefixVODPlaying").value  = settings.prefixVODPlaying  ?? DEFAULTS.prefixVODPlaying;
+    $("prefixPaused").value      = settings.prefixPaused      ?? DEFAULTS.prefixPaused;
+    $("finishedPrefix").value    = settings.finishedPrefix    ?? DEFAULTS.finishedPrefix;
+
+    const hold = Number(settings.finishedHoldMs) || 0;
+    $("finishedHoldMs").value = hold;
+    $("finishedHoldForever").checked = hold === 0;
+
+    $("updateIntervalMs").value = Number(settings.updateIntervalMs) || DEFAULTS.updateIntervalMs;
+    $("defaultEnabled").checked = !!settings.defaultEnabled;
+    $("hideWhenInactive").checked = !!settings.hideWhenInactive;
+    $("liveShowElapsed").checked = !!settings.liveShowElapsed;
+  }
+
+  function getFormSettings() {
+    // Do not zero out numeric when Forever is checked; we only write 0 on save if checkbox is on
+    const forever = $("finishedHoldForever").checked;
+    const holdVal = Number($("finishedHoldMs").value || 0);
+    const holdToSave = forever ? 0 : Math.max(0, holdVal);
+
+    return {
+      prefixLivePlaying: $("prefixLivePlaying").value || DEFAULTS.prefixLivePlaying,
+      prefixVODPlaying:  $("prefixVODPlaying").value  || DEFAULTS.prefixVODPlaying,
+      prefixPaused:      $("prefixPaused").value      || DEFAULTS.prefixPaused,
+      finishedPrefix:    $("finishedPrefix").value    || DEFAULTS.finishedPrefix,
+      finishedHoldMs:    holdToSave,
+      updateIntervalMs:  Math.max(100, Number($("updateIntervalMs").value || DEFAULTS.updateIntervalMs)),
+      defaultEnabled:    $("defaultEnabled").checked,
+      hideWhenInactive:  $("hideWhenInactive").checked,
+      liveShowElapsed:   $("liveShowElapsed").checked
+    };
+  }
+
+  async function onSave() {
+    const newSettings = getFormSettings();
+
+    // Persist
+    await chrome.storage.sync.set({ settings: newSettings });
+
+    // Ping all tabs to apply without reload
+    try {
+      const tabs = await chrome.tabs.query({});
+      for (const t of tabs) {
+        try { chrome.tabs.sendMessage(t.id, { type: "APPLY_SETTINGS" }); } catch {}
+      }
+    } catch {}
+
+    settings = { ...DEFAULTS, ...newSettings };
+    showStatus("Saved ✓");
+  }
+
+  async function onResetDefaults() {
+    // Reset UI to defaults; do not overwrite sites
+    settings = { ...DEFAULTS };
+    renderForm();
+    showStatus("Reset fields to defaults. Click Save to apply.");
+  }
+
+  function renderSitesTable() {
+    const tbody = document.querySelector("#sitesTable tbody");
+    tbody.innerHTML = "";
+
+    const rows = Object.entries(sites).map(([host, cfg]) => ({ host, cfg }));
+    rows.sort((a, b) => a.host.localeCompare(b.host));
+
+    for (const { host, cfg } of rows) {
+      const tr = document.createElement("tr");
+
+      const tdHost = document.createElement("td");
+      tdHost.textContent = host;
+
+      const tdEnabled = document.createElement("td");
+      tdEnabled.textContent = cfg.enabled ? "On" : "Off";
+
+      const tdFinished = document.createElement("td");
+      tdFinished.textContent = (cfg.finishedEnabled ?? true) ? "Shown" : "Hidden";
+
+      const tdActions = document.createElement("td");
+      const btnToggle = document.createElement("button");
+      btnToggle.textContent = cfg.enabled ? "Disable" : "Enable";
+      btnToggle.addEventListener("click", async () => {
+        cfg.enabled = !cfg.enabled;
+        await chrome.storage.sync.set({ sites });
+        renderSitesTable();
+        showStatus(`Site ${host}: ${cfg.enabled ? "enabled" : "disabled"}`);
+        broadcastApply();
+      });
+      const btnRemove = document.createElement("button");
+      btnRemove.textContent = "Remove";
+      btnRemove.addEventListener("click", async () => {
+        delete sites[host];
+        await chrome.storage.sync.set({ sites });
+        renderSitesTable();
+        showStatus(`Removed site override: ${host}`);
+        broadcastApply();
+      });
+
+      tdActions.appendChild(btnToggle);
+      tdActions.appendChild(btnRemove);
+
+      tr.appendChild(tdHost);
+      tr.appendChild(tdEnabled);
+      tr.appendChild(tdFinished);
+      tr.appendChild(tdActions);
+      tbody.appendChild(tr);
+    }
+  }
+
+  async function onToggleSite() {
+    const hostRaw = $("currentHost").value.trim();
+    if (!hostRaw) return;
+
+    const canon = canonicalHost(hostRaw);
+    const cur = sites[canon] || sites[hostRaw] || { enabled: settings.defaultEnabled, finishedEnabled: true };
+
+    cur.enabled = !cur.enabled;
+
+    // Store canonized key
+    delete sites[hostRaw];
+    sites[canon] = cur;
+
+    await chrome.storage.sync.set({ sites });
+    renderSitesTable();
+    $("finishedEnabledThisSite").checked = cur.finishedEnabled ?? true;
+    showStatus(`${canon}: ${cur.enabled ? "enabled" : "disabled"}`);
+    broadcastApply();
+  }
+
+  async function onApplySitePrefs() {
+    const hostRaw = $("currentHost").value.trim();
+    if (!hostRaw) return;
+
+    const canon = canonicalHost(hostRaw);
+    const cur = sites[canon] || sites[hostRaw] || { enabled: settings.defaultEnabled, finishedEnabled: true };
+
+    cur.finishedEnabled = $("finishedEnabledThisSite").checked;
+
+    delete sites[hostRaw];
+    sites[canon] = cur;
+
+    await chrome.storage.sync.set({ sites });
+    renderSitesTable();
+    showStatus(`${canon}: Finished banner ${cur.finishedEnabled ? "shown" : "hidden"}`);
+    broadcastApply();
+  }
+
+  function broadcastApply() {
+    try {
+      chrome.tabs.query({}, (tabs) => {
+        for (const t of tabs) {
+          try { chrome.tabs.sendMessage(t.id, { type: "APPLY_SETTINGS" }); } catch {}
+        }
+      });
+    } catch {}
+  }
+
+  function showStatus(msg) {
+    const s = $("status");
+    s.textContent = msg;
+    s.classList.add("show");
+    clearTimeout(showStatus._t);
+    showStatus._t = setTimeout(() => { s.textContent = ""; s.classList.remove("show"); }, 1600);
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();

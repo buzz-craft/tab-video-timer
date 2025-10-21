@@ -1,14 +1,17 @@
 // content.js
 // Twitch: prefer H:MM:SS from UI (if present) so hours never get dropped.
-// - The UI elapsed parser now scans ALL matches, prioritizes two-colon H:MM:SS,
-//   and falls back to the longest/plausible value if needed.
-// - Everything else unchanged: per-tab enable, default-disabled, title freshness,
-//   Apollo/JSON-LD/meta start detection, video-node/identity resets, YT DVR guard.
+// - The UI elapsed parser scans ALL matches, prioritizes H:MM:SS,
+//   and falls back to the longest plausible value when needed.
+// - Adds separate prefixes: prefixLivePlaying, prefixVODPlaying (paused uses prefixPaused).
+// - Keeps legacy prefixPlaying as a fallback for existing users.
 
 if (window.top === window.self) {
   (function () {
     const DEFAULTS = {
-      prefixPlaying: "⏳",
+      // NEW: split playing prefixes
+      prefixPlaying: "⏳",           // legacy fallback for older settings
+      prefixLivePlaying: "🔴 LIVE",  // live playing prefix
+      prefixVODPlaying: "⏳",        // VOD playing prefix
       prefixPaused: "⏸",
       finishedPrefix: "✓ Finished",
       finishedHoldMs: 0,
@@ -75,11 +78,17 @@ if (window.top === window.self) {
     let lastTwitchIdentity = ""; // channel::streamId::title
 
     // ---------- utils ----------
-    const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+    const clamp = (n, min, max) => Math.max(min, Math.min(n, max));
     const nowMs = () => Date.now();
 
     // decoration helpers
-    const DECOR_RE = /^(?:[\u23F3\u23F8]\uFE0F?\s+\d{1,2}:\d{2}(?::\d{2})?\s+•\s+|✓\s+Finished\s+•\s+)/u;
+    // Matches:
+    //   ⏳ 12:34[(:56)] • Title
+    //   ⏸ 12:34[(:56)] • Title
+    //   🔴 LIVE 1:23:45 • Title
+    //   ✓ Finished • Title
+    // Keep tight to avoid stripping legitimate titles.
+    const DECOR_RE = /^(?:[\u23F3\u23F8]\uFE0F?\s+\d{1,2}:\d{2}(?::\d{2})?\s+•\s+|\u{1F534}\s+LIVE\s+\d{1,2}:\d{2}(?::\d{2})?\s+•\s+|✓\s+Finished\s+•\s+)/u;
     const isDecorated = (t) => DECOR_RE.test(t || "");
     const stripDecor = (t) => (t || "").replace(DECOR_RE, "");
 
@@ -88,7 +97,6 @@ if (window.top === window.self) {
       const h = Math.floor(totalSeconds / 3600);
       const m = Math.floor((totalSeconds % 3600) / 60);
       const s = totalSeconds % 60;
-      // Force H:MM:SS when >= 1h
       if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
       return `${m}:${String(s).padStart(2, "0")}`;
     }
@@ -147,11 +155,9 @@ if (window.top === window.self) {
 
     // ---------- Twitch helpers ----------
     function twitchChannelLogin() {
-      // 1) From path
       const seg = (location.pathname || "/").split("/").filter(Boolean)[0] || "";
       if (seg && !["videos", "directory", "p"].includes(seg)) return seg.toLowerCase();
 
-      // 2) From og:url / canonical
       try {
         const cand = document.querySelector('meta[property="og:url"]')?.getAttribute("content") ||
                      document.querySelector('link[rel="canonical"]')?.href || "";
@@ -161,7 +167,6 @@ if (window.top === window.self) {
         }
       } catch {}
 
-      // 3) From profile link
       const link = document.querySelector('[data-a-target="profile-link"], a[href^="/"][data-test-selector="user-menu__toggle"]');
       if (link) {
         try {
@@ -277,8 +282,7 @@ if (window.top === window.self) {
       );
     }
 
-    // ---------- NEW: Twitch UI elapsed-time reader (robust) ----------
-    // Parse ALL clock-like times in text; return the best (prefer 3-part H:MM:SS, else longest sec)
+    // ---------- Twitch UI elapsed-time reader ----------
     function parseBestClockishToSec(txt) {
       const re = /(\d{1,2}):([0-5]\d)(?::([0-5]\d))?/g;
       let best = null;
@@ -290,7 +294,6 @@ if (window.top === window.self) {
         if ([h, mm, ss].some(Number.isNaN)) continue;
         const sec = h * 3600 + mm * 60 + ss;
         if (sec <= 0 || sec > 48 * 3600) continue;
-        // Prefer any 3-part over 2-part; otherwise prefer larger (more informative)
         if (best == null ||
             (h > 0 && best.h === 0) ||
             (h === best.h && sec > best.sec)) {
@@ -300,7 +303,6 @@ if (window.top === window.self) {
       return best ? best.sec : null;
     }
 
-    // Words like "2 hours 5 minutes"
     function parseWordsToSec(txt) {
       const lower = txt.toLowerCase();
       const hm = /(\d+)\s*h(?:ou)?rs?/.exec(lower);
@@ -316,13 +318,11 @@ if (window.top === window.self) {
 
     function candidateElapsedNodes() {
       const sel = [
-        // Stream header & metadata blocks
         '[data-a-target="stream-title"]',
         '[data-test-selector="stream-info-card-component__title"]',
         '[data-a-target="stream-info-card-component__metadata"]',
         '[data-a-target="stream-info-card-component__subtitle"]',
         '[data-test-selector*="stream-info"], [data-test-selector*="metadata"]',
-        // Generic fallbacks
         '[data-a-target*="stream"], [data-a-target*="time"], [data-a-target*="duration"]',
         '[class*="stream"], [class*="time"], [class*="duration"]',
         'main section, aside, header'
@@ -335,7 +335,6 @@ if (window.top === window.self) {
       let bestSec = null;
       let found3part = false;
 
-      // Examine candidate nodes' text AND aria-labels
       const regions = candidateElapsedNodes();
       for (const el of regions) {
         const texts = new Set();
@@ -345,16 +344,18 @@ if (window.top === window.self) {
         if (aria) texts.add(aria.trim());
 
         for (const txt of texts) {
-          // Prefer any H:MM:SS (two colons)
           const clockSec = parseBestClockishToSec(txt);
           if (clockSec != null) {
-            const hasH = txt.match(/\d{1,2}:[0-5]\d:[0-5]\d/); // two colons present
+            const hasH = /\d{1,2}:[0-5]\d:[0-5]\d/.test(txt);
             if (hasH) found3part = true;
-            if (bestSec == null || (found3part && !/\d{1,2}:[0-5]\d:[0-5]\d/.test(`00:${fmtHMS(bestSec)}`)) || clockSec > bestSec) {
+            if (
+              bestSec == null ||
+              (found3part && !/\d{1,2}:[0-5]\d:[0-5]\d/.test(`00:${fmtHMS(bestSec)}`)) ||
+              clockSec > bestSec
+            ) {
               bestSec = clockSec;
             }
           }
-          // Also consider "2 hours 5 minutes"
           const wordSec = parseWordsToSec(txt);
           if (wordSec != null) {
             if (bestSec == null || (!found3part && wordSec > bestSec)) bestSec = wordSec;
@@ -362,7 +363,6 @@ if (window.top === window.self) {
         }
       }
 
-      // Secondary: walk up from the video element (useful for compact overlays)
       if (bestSec == null) {
         const v = getAnyRelevantMedia();
         if (v) {
@@ -387,7 +387,7 @@ if (window.top === window.self) {
       const needSnap =
         liveStartMs == null ||
         Math.abs(derivedStart - liveStartMs) > 5000 ||
-        elapsed + 15 < lastElapsedShownSec; // big drop => new stream
+        elapsed + 15 < lastElapsedShownSec;
 
       if (needSnap) {
         liveStartMs = derivedStart;
@@ -494,7 +494,7 @@ if (window.top === window.self) {
 
       if (!liveNow && isYouTube() && isYouTubeLiveByBadge()) liveNow = true;
 
-      if (startMs && (nowMs() - startMs) > 48 * 3600 * 1000) startMs = null; // ignore >48h old
+      if (startMs && (nowMs() - startMs) > 48 * 3600 * 1000) startMs = null;
 
       return { liveNow, startMs };
     }
@@ -505,7 +505,7 @@ if (window.top === window.self) {
         const { liveNow } = getYouTubeLiveInfo();
         return durationInfinite || isYouTubeLiveByBadge() || liveNow;
       }
-      return durationInfinite; // non-YouTube generic (Twitch exposes Infinity)
+      return durationInfinite;
     }
 
     // DVR helpers
@@ -534,18 +534,16 @@ if (window.top === window.self) {
       return els[0] || null;
     }
 
-    // ---------- observers (Twitch stream swaps & meta changes) ----------
+    // ---------- observers ----------
     let bodyObserver = null;
     let headObserver = null;
 
     function startObservers() {
-      // Watch for video node replacement (Twitch often replaces the <video> element across streams)
       if (!bodyObserver) {
         bodyObserver = new MutationObserver(() => {
           const v = getAnyRelevantMedia();
           if (v && v !== currentVideoNode) {
             currentVideoNode = v;
-            // New video node -> treat as new stream instance
             hardResetLiveState();
             lastApplied = "";
             finishedUntil = 0;
@@ -553,11 +551,8 @@ if (window.top === window.self) {
         });
         bodyObserver.observe(document.body, { childList: true, subtree: true });
       }
-      // Watch for head/meta mutations to re-probe start time if metadata appears later
       if (!headObserver) {
-        headObserver = new MutationObserver(() => {
-          setTimeout(tick, 0);
-        });
+        headObserver = new MutationObserver(() => { setTimeout(tick, 0); });
         headObserver.observe(document.head || document.documentElement, { childList: true, subtree: true, attributes: true });
       }
     }
@@ -575,20 +570,17 @@ if (window.top === window.self) {
       const hiddenPolicy = settings.hideWhenInactive && !visible;
       const effectiveEnabled = enabledForHost && !hiddenPolicy;
 
-      // Enable/disable edge
       if (prevEffectiveEnabled !== effectiveEnabled) {
         if (!effectiveEnabled) {
           restoreTitleOnceIfDecorated();
         } else {
           lastApplied = "";
-          // On enable ensure we don't inherit any stale live session
           hardResetLiveState();
         }
         prevEffectiveEnabled = effectiveEnabled;
       }
-      if (!effectiveEnabled) return; // never touch title while disabled
+      if (!effectiveEnabled) return;
 
-      // Twitch stream-identity check (channel OR streamId OR title change)
       if (isTwitch()) {
         const ident = currentTwitchStreamIdentity();
         if (ident && ident !== lastTwitchIdentity) {
@@ -599,21 +591,17 @@ if (window.top === window.self) {
         }
       }
 
-      // Non-watch YouTube pages -> no decoration
       if (isYouTube() && !isYouTubeWatch()) return;
 
       const mediaPlaying = getPlayingMedia();
       const anyMedia = mediaPlaying || getAnyRelevantMedia();
 
-      // Track the actual video node (for Twitch swaps)
       if (anyMedia && anyMedia !== currentVideoNode) {
         currentVideoNode = anyMedia;
-        // Treat as a fresh stream instance
         hardResetLiveState();
         lastApplied = "";
       }
 
-      // Always compute the *current* base title right before we render
       const baseTitle = currentBaseTitle();
 
       // ----- PLAYING -----
@@ -634,7 +622,7 @@ if (window.top === window.self) {
         if (strongLive && settings.liveShowElapsed) {
           isLive = true;
 
-          // Acquire/refresh liveStartMs (Twitch gets Apollo+meta+JSON-LD and UI elapsed)
+          // Acquire/refresh liveStartMs
           if (isYouTube()) {
             const { startMs } = getYouTubeLiveInfo();
             if (startMs && (liveStartMs == null || Math.abs(liveStartMs - startMs) > 1000)) liveStartMs = startMs;
@@ -642,8 +630,6 @@ if (window.top === window.self) {
             const ap = getApollo();
             const maybe = findLiveStartMsFromApollo(ap) || parseStartFromJsonLd() || findLiveStartMsFromMeta();
             if (maybe && (nowMs() - maybe) <= 48 * 3600 * 1000) liveStartMs = maybe;
-
-            // Prefer Twitch UI elapsed if present (now robustly finds H:MM:SS)
             maybeSnapToTwitchUIElapsed();
           } else {
             const maybe = parseStartFromJsonLd() || findLiveStartMsFromMeta();
@@ -655,7 +641,8 @@ if (window.top === window.self) {
           const elapsedSec = clamp((nowMs() - originMs) / 1000, 0, 60 * 60 * 48);
           lastElapsedShownSec = elapsedSec;
 
-          safeSetTitle(`${settings.prefixPlaying || "⏳"} ${fmtHMS(elapsedSec)} • ${baseTitle}`);
+          const livePfx = (settings.prefixLivePlaying ?? settings.prefixPlaying ?? "🔴 LIVE");
+          safeSetTitle(`${livePfx} ${fmtHMS(elapsedSec)} • ${baseTitle}`);
           lastIsPlaying = true;
           pausedSnapshot = null;
           return;
@@ -668,7 +655,8 @@ if (window.top === window.self) {
         if (!Number.isFinite(dur) || dur <= 0) return;
         const cur = Number.isFinite(mediaPlaying.currentTime) ? mediaPlaying.currentTime : 0;
         const left = clamp(Math.ceil(dur - cur), 0, dur);
-        safeSetTitle(`${settings.prefixPlaying || "⏳"} ${fmtHMS(left)} • ${baseTitle}`);
+        const vodPfx = (settings.prefixVODPlaying ?? settings.prefixPlaying ?? "⏳");
+        safeSetTitle(`${vodPfx} ${fmtHMS(left)} • ${baseTitle}`);
         lastIsPlaying = true;
         return;
       }
@@ -679,7 +667,7 @@ if (window.top === window.self) {
         const strongLive = isStrongLive(anyMedia);
 
         if (strongLive && settings.liveShowElapsed) {
-          // Keep probing for start while paused too
+          // Keep probing for start while paused, too
           if (isYouTube()) {
             const { startMs } = getYouTubeLiveInfo();
             if (startMs && (liveStartMs == null || Math.abs(liveStartMs - startMs) > 1000)) liveStartMs = startMs;
@@ -688,8 +676,6 @@ if (window.top === window.self) {
             const maybe = (isTwitch() && (findLiveStartMsFromApollo(ap) || parseStartFromJsonLd() || findLiveStartMsFromMeta())) ||
                           parseStartFromJsonLd() || findLiveStartMsFromMeta();
             if (maybe && (nowMs() - maybe) <= 48 * 3600 * 1000) liveStartMs = maybe;
-
-            // Prefer Twitch UI elapsed
             if (isTwitch()) maybeSnapToTwitchUIElapsed();
           }
 
@@ -737,6 +723,7 @@ if (window.top === window.self) {
       try {
         const store = await chrome.storage.sync.get(["settings", "sites"]);
         const stored = store.settings || {};
+        // Merge with new defaults while preserving legacy prefixPlaying fallback
         settings = { ...DEFAULTS, ...stored };
         if (stored.defaultEnabled === undefined) settings.defaultEnabled = DEFAULTS.defaultEnabled;
 
@@ -748,7 +735,6 @@ if (window.top === window.self) {
 
         currentVid = ytVideoIdFromUrl(location.href);
 
-        // Seed Twitch identity early
         if (isTwitch()) {
           lastTwitchIdentity = currentTwitchStreamIdentity();
         }
@@ -814,11 +800,13 @@ if (window.top === window.self) {
         prevEffectiveEnabled = null;           // force edge handling next tick
         startLoop();
         sendResponse?.({ ok: true, enabled: localEnabledOverride });
+        return;
       }
 
       if (msg.type === "GET_LOCAL_ENABLED") {
         computeEnabledFlags();
         sendResponse?.({ override: localEnabledOverride, effective: enabledForHost });
+        return;
       }
     });
 
@@ -826,50 +814,12 @@ if (window.top === window.self) {
 
     window.addEventListener("beforeunload", () => { try { stopObservers(); } catch {} });
 
-    // ---- Per-tab enable/override message API for popup ----
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  try {
-    if (!msg || typeof msg !== "object") return;
-
-    if (msg.type === "GET_LOCAL_ENABLED") {
-      // localEnabledOverride can be: true | false | null
-      // effective = what the content script is currently using
-      sendResponse({
-        ok: true,
-        override: (localEnabledOverride === null ? null : !!localEnabledOverride),
-        effective: !!enabledForHost
-      });
-      return;
-    }
-
-    if (msg.type === "SET_LOCAL_ENABLED") {
-      localEnabledOverride = !!msg.enabled;
-      computeEnabledFlags(); // recompute effective flags immediately
-      // If disabling, restore the title right away
-      if (!enabledForHost) restoreTitleOnceIfDecorated();
-      sendResponse({ ok: true });
-      return;
-    }
-
-    if (msg.type === "APPLY_SETTINGS") {
-      // Settings changed from Options — reload in place
-      loadSettings().then(() => {
-        computeEnabledFlags();
-        // Nudge the next tick so UI updates promptly
-        setTimeout(() => { try { tick(); } catch {} }, 0);
-      });
-      sendResponse({ ok: true });
-      return;
-    }
-  } catch {}
-});
-
-// ---- identity helper (kept last to avoid hoist noise) ----
+    // ---- identity helper (kept last to avoid hoist noise) ----
     function currentTwitchStreamIdentity() {
       if (!isTwitch()) return "";
-      const channel = twitchChannelLogin(); // stable across SPA
+      const channel = twitchChannelLogin();
       const ap = getApollo();
-      const streamId = findTwitchStreamIdFromApollo(ap); // reliable per-stream marker (may be empty)
+      const streamId = findTwitchStreamIdFromApollo(ap);
       const title = getTwitchTitleFresh();
       return `${channel || "?"}::${streamId || "?"}::${title || "?"}`;
     }
