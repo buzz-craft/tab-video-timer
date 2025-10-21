@@ -1,3 +1,4 @@
+
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -10,9 +11,15 @@ set -euo pipefail
 #   ./scripts/release.sh major              # bump X.y.z -> (X+1).0.0
 #   ./scripts/release.sh nobump             # no version change; push + package
 #   ./scripts/release.sh nobump --push-only # no version change; push only (skip packaging)
+#
+# Safeguards:
+#   • If no arg and interactive TTY, show a menu and ask for confirmation.
+#   • If not interactive and no arg, abort.
+#   • If the last commit message looks like a version bump, refuse to bump again.
+#   • If the latest tag equals the manifest version, refuse to bump again.
 
 die() { echo "Error: $*" >&2; exit 1; }
-need() { command -v "$1" >/dev/null || die "'$1' is required"; }
+need() { command -v "$1" >/dev/null || die "'$1' is required (mac: brew install $1, win: choco install $1)"; }
 need git
 need jq
 
@@ -24,13 +31,14 @@ need jq
 
 chmod +x scripts/bump-*.sh scripts/package.sh || true
 
-# Parse args
+# Parse args (support --push-only in any position)
 choice=""
 push_only="false"
 for arg in "${@:-}"; do
   case "$arg" in
     patch|minor|major|nobump) choice="$arg" ;;
     --push-only) push_only="true" ;;
+    *) ;;
   esac
 done
 
@@ -49,7 +57,7 @@ NEXT_PATCH="$MA.$MI.$((PA+1))"
 NEXT_MINOR="$MA.$((MI+1)).0"
 NEXT_MAJOR="$((MA+1)).0.0"
 
-# Interactive menu
+# If no arg provided, enforce interactive TTY
 if [[ -z "$choice" ]]; then
   if [ ! -t 0 ]; then
     die "No TTY detected and no argument provided. Use: patch | minor | major | nobump [--push-only]"
@@ -66,25 +74,28 @@ if [[ -z "$choice" ]]; then
     2) choice="minor" ;;
     3) choice="major" ;;
     4) choice="nobump" ;;
-    *) die "Invalid choice" ;;
+    *) die "Invalid choice";;
   esac
 fi
 
-# Double-bump guard A: last commit message looks like a bump
+# ----- Double-bump guards -----
 last_msg="$(git log -1 --pretty=%B | tr -d '\r')"
 if [[ "$choice" =~ ^(patch|minor|major)$ ]]; then
-  if echo "$last_msg" | grep -Eqi '\b(bump version to|version bump|^release: v?[0-9]+\.[0-9]+\.[0-9]+)\b'; then
-    echo "⚠️  Last commit looks like a version bump. Continuing only if you confirm."
-    read -r -p "Proceed anyway? [y/N] " ans
-    case "${ans:-N}" in y|Y) : ;; *) echo "Aborted."; exit 1;; esac
+  # Guard A: last commit already looks like a bump
+  if echo "$last_msg" | grep -Eqi '\b(bump version to|version bump|chore:\s*bump version to)\b'; then
+    die "Last commit looks like a bump already. Refusing to bump again. (Use 'nobump' or make another commit first.)"
+  fi
+  # Guard B: latest tag equals manifest version
+  latest_tag="$(git tag --list 'v*' --sort=-version:refname | head -n1 || true)"
+  latest_tag="${latest_tag#v}"
+  if [[ -n "$latest_tag" && "$latest_tag" == "$OLD_VER" ]]; then
+    die "Latest tag 'v${latest_tag}' already equals manifest version ${OLD_VER}. Refusing to bump again."
   fi
 fi
-# NOTE: Removed previous guard that blocked when latest tag == manifest version.
-# That's a normal pre-bump state (e.g., tag v1.1.0 and manifest 1.1.0 before bumping to 1.1.1).
 
 confirm() {
   local label="$1" newv="$2"
-  if [ ! -t 0 ]; then return 0; fi
+  if [ ! -t 0 ]; then return 0; fi  # non-interactive: skip confirm
   read -r -p "Proceed with ${label}${newv:+ to $newv}? [y/N] " ans
   case "${ans:-N}" in y|Y) : ;; *) echo "Aborted."; exit 1;; esac
 }
@@ -102,16 +113,19 @@ case "$choice" in
 
   patch)
     confirm "PATCH bump" "$NEXT_PATCH"
+    echo "➡️  Running patch bump ..."
     ./scripts/bump-patch.sh
     ;;
 
   minor)
     confirm "MINOR bump" "$NEXT_MINOR"
+    echo "➡️  Running minor bump ..."
     ./scripts/bump-minor.sh
     ;;
 
   major)
     confirm "MAJOR bump" "$NEXT_MAJOR"
+    echo "➡️  Running major bump ..."
     ./scripts/bump-major.sh
     ;;
 
@@ -134,6 +148,7 @@ fi
 
 if [[ "$choice" == "nobump" && "$push_only" == "true" ]]; then
   echo "⏭️  Skipping packaging (push-only mode)."
+  echo
   echo "Reminder: Web Store requires a higher version to accept a new upload."
   exit 0
 fi
@@ -149,7 +164,15 @@ else
 fi
 
 if [[ "$choice" == "nobump" ]]; then
+  echo
   echo "⚠️  Reminder: Chrome Web Store requires a higher manifest version to accept a new upload."
+  echo "    Use this ZIP for local testing or GitHub artifacts only."
 fi
 
-echo "Done."
+echo
+echo "Next steps:"
+echo "  1) For Web Store upload, ensure version increased (not applicable to no-bump)."
+echo "  2) Open Dev Dashboard -> Upload new package"
+echo "  3) Choose: $ZIP"
+echo "  4) Paste 'What’s new' from CHANGELOG.md"
+echo "  5) Submit"
