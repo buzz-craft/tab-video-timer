@@ -1,6 +1,7 @@
 // options.js
-// Exposes separate prefixes: prefixLivePlaying, prefixVODPlaying (paused shared via prefixPaused).
-// Migrates from legacy `prefixPlaying` on load (UI only) until user clicks Save.
+// Adds dynamic hint for Finished hold: "~N seconds" when not Forever,
+// "Title will be held indefinitely" when Forever is checked.
+// Also exposes separate prefixes for LIVE and VOD playing.
 
 (() => {
   const DEFAULTS = {
@@ -16,10 +17,9 @@
     liveShowElapsed: true
   };
 
-  // DOM helpers
+  // DOM
   const $ = (id) => document.getElementById(id);
 
-  // Canonicalize host names like content.js does
   const canonicalHost = (h) => {
     const host = (h || "").toLowerCase();
     if (host.endsWith(".youtube.com") || host === "youtube.com" || host === "youtu.be") return "youtube.com";
@@ -28,37 +28,29 @@
   };
 
   let settings = { ...DEFAULTS };
-  let sites = {};             // as stored (raw)
-  let currentHost = "";       // raw current tab host
+  let sites = {};
+  let currentHost = "";
 
-  // ---- UI wiring ----
+  document.addEventListener("DOMContentLoaded", init);
+
   async function init() {
     await loadAll();
     seedCurrentHostFromActiveTab();
     renderForm();
     renderSitesTable();
+    wireEvents();
+    syncHoldHint(); // initialize hint text
+  }
 
-    // Events
+  function wireEvents() {
     $("save").addEventListener("click", onSave);
     $("reset").addEventListener("click", onResetDefaults);
     $("toggleSite").addEventListener("click", onToggleSite);
     $("applySitePrefs").addEventListener("click", onApplySitePrefs);
 
-    // Keep hint text consistent with the number input
-    const holdMs = $("finishedHoldMs");
-    const hint = $("finishedHoldHint");
-    const forever = $("finishedHoldForever");
-    const syncHint = () => {
-      const val = Number(holdMs.value || 0);
-      hint.textContent = val === 0 ? "Set 0 to keep “Finished” indefinitely"
-                                   : `Currently: ${val} ms (set 0 for Forever)`;
-    };
-    holdMs.addEventListener("input", syncHint);
-    forever.addEventListener("change", () => {
-      // Do not overwrite the numeric box; only affect how we save
-      syncHint();
-    });
-    syncHint();
+    // Dynamic hint behavior for hold time
+    $("finishedHoldMs").addEventListener("input", syncHoldHint);
+    $("finishedHoldForever").addEventListener("change", syncHoldHint);
   }
 
   async function loadAll() {
@@ -68,8 +60,7 @@
     // Merge defaults
     settings = { ...DEFAULTS, ...storedSettings };
 
-    // ---- Migration logic (UI only; save happens on user action) ----
-    // If new keys are missing but legacy prefixPlaying exists, surface it in both fields.
+    // UI-only migration from legacy prefixPlaying
     if (storedSettings.prefixLivePlaying == null && storedSettings.prefixVODPlaying == null) {
       if (typeof storedSettings.prefixPlaying === "string" && storedSettings.prefixPlaying.trim()) {
         settings.prefixLivePlaying = storedSettings.prefixPlaying;
@@ -87,17 +78,12 @@
         try {
           const u = new URL(url);
           currentHost = u.hostname || "";
-        } catch {
-          currentHost = "";
-        }
+        } catch { currentHost = ""; }
         $("currentHost").value = currentHost;
-        // Preload finished checkbox from stored sites if present
         const site = sites[canonicalHost(currentHost)] || sites[currentHost] || {};
         $("finishedEnabledThisSite").checked = site.finishedEnabled ?? true;
       });
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
   }
 
   function renderForm() {
@@ -116,8 +102,21 @@
     $("liveShowElapsed").checked = !!settings.liveShowElapsed;
   }
 
+  // Dynamic hint text for Finished hold
+  function syncHoldHint() {
+    const hint = $("finishedHoldHint");
+    const forever = $("finishedHoldForever").checked;
+    const msRaw = Number($("finishedHoldMs").value || 0);
+    if (forever) {
+      hint.textContent = "Title will be held indefinitely";
+      return;
+    }
+    const secs = Math.max(0, Math.round(msRaw / 1000));
+    hint.textContent = `Approximately ~${secs} second${secs === 1 ? "" : "s"}`;
+  }
+
   function getFormSettings() {
-    // Do not zero out numeric when Forever is checked; we only write 0 on save if checkbox is on
+    // Do not change the numeric input when Forever is toggled.
     const forever = $("finishedHoldForever").checked;
     const holdVal = Number($("finishedHoldMs").value || 0);
     const holdToSave = forever ? 0 : Math.max(0, holdVal);
@@ -137,11 +136,9 @@
 
   async function onSave() {
     const newSettings = getFormSettings();
-
-    // Persist
     await chrome.storage.sync.set({ settings: newSettings });
 
-    // Ping all tabs to apply without reload
+    // Notify tabs to re-apply settings
     try {
       const tabs = await chrome.tabs.query({});
       for (const t of tabs) {
@@ -154,9 +151,9 @@
   }
 
   async function onResetDefaults() {
-    // Reset UI to defaults; do not overwrite sites
     settings = { ...DEFAULTS };
     renderForm();
+    syncHoldHint();
     showStatus("Reset fields to defaults. Click Save to apply.");
   }
 
@@ -219,7 +216,6 @@
 
     cur.enabled = !cur.enabled;
 
-    // Store canonized key
     delete sites[hostRaw];
     sites[canon] = cur;
 
@@ -265,6 +261,4 @@
     clearTimeout(showStatus._t);
     showStatus._t = setTimeout(() => { s.textContent = ""; s.classList.remove("show"); }, 1600);
   }
-
-  document.addEventListener("DOMContentLoaded", init);
 })();
