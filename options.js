@@ -1,11 +1,11 @@
 // options.js
-// Adds dynamic hint for Finished hold: "~N seconds" when not Forever,
-// "Title will be held indefinitely" when Forever is checked.
-// Also exposes separate prefixes for LIVE and VOD playing.
+// Robust messaging: filter tabs without content scripts and catch promise rejections.
+// Dynamic hold hint (~seconds / indefinitely). Separate LIVE/VOD/Paused titles.
 
 (() => {
   const DEFAULTS = {
-    prefixPlaying: "⏳",           // legacy fallback (kept for migration)
+    // legacy fallback kept for migration
+    prefixPlaying: "⏳",
     prefixLivePlaying: "🔴 LIVE",
     prefixVODPlaying: "⏳",
     prefixPaused: "⏸",
@@ -17,7 +17,6 @@
     liveShowElapsed: true
   };
 
-  // DOM
   const $ = (id) => document.getElementById(id);
 
   const canonicalHost = (h) => {
@@ -39,7 +38,7 @@
     renderForm();
     renderSitesTable();
     wireEvents();
-    syncHoldHint(); // initialize hint text
+    syncHoldHint();
   }
 
   function wireEvents() {
@@ -48,7 +47,6 @@
     $("toggleSite").addEventListener("click", onToggleSite);
     $("applySitePrefs").addEventListener("click", onApplySitePrefs);
 
-    // Dynamic hint behavior for hold time
     $("finishedHoldMs").addEventListener("input", syncHoldHint);
     $("finishedHoldForever").addEventListener("change", syncHoldHint);
   }
@@ -57,10 +55,9 @@
     const { settings: storedSettings = {}, sites: storedSites = {} } =
       await chrome.storage.sync.get(["settings", "sites"]);
 
-    // Merge defaults
     settings = { ...DEFAULTS, ...storedSettings };
 
-    // UI-only migration from legacy prefixPlaying
+    // UI-only migration from legacy prefixPlaying → both new fields (until Save)
     if (storedSettings.prefixLivePlaying == null && storedSettings.prefixVODPlaying == null) {
       if (typeof storedSettings.prefixPlaying === "string" && storedSettings.prefixPlaying.trim()) {
         settings.prefixLivePlaying = storedSettings.prefixPlaying;
@@ -69,6 +66,32 @@
     }
 
     sites = { ...storedSites };
+  }
+
+  // ---------- Tab utilities ----------
+  function isWebTab(url = "") {
+    // Content scripts don't exist on chrome://, edge://, about:, chrome-extension://, etc.
+    // We allow http(s), file, ftp (matches your <all_urls> policy except restricted schemes).
+    return /^(https?:|file:|ftp:)/i.test(url);
+  }
+
+  async function listWebTabs() {
+    const tabs = await chrome.tabs.query({});
+    return tabs.filter(t => isWebTab(t.url || ""));
+  }
+
+  function sendToTab(tabId, message) {
+    // Use promise form and always catch to avoid "Uncaught (in promise)".
+    return chrome.tabs.sendMessage(tabId, message).catch(() => {/* ignore missing receivers */});
+  }
+
+  async function broadcastApply() {
+    try {
+      const tabs = await listWebTabs();
+      await Promise.allSettled(tabs.map(t => sendToTab(t.id, { type: "APPLY_SETTINGS" })));
+    } catch {
+      // ignore
+    }
   }
 
   function seedCurrentHostFromActiveTab() {
@@ -86,6 +109,7 @@
     } catch { /* ignore */ }
   }
 
+  // ---------- Form ----------
   function renderForm() {
     $("prefixLivePlaying").value = settings.prefixLivePlaying ?? DEFAULTS.prefixLivePlaying;
     $("prefixVODPlaying").value  = settings.prefixVODPlaying  ?? DEFAULTS.prefixVODPlaying;
@@ -102,7 +126,6 @@
     $("liveShowElapsed").checked = !!settings.liveShowElapsed;
   }
 
-  // Dynamic hint text for Finished hold
   function syncHoldHint() {
     const hint = $("finishedHoldHint");
     const forever = $("finishedHoldForever").checked;
@@ -116,7 +139,6 @@
   }
 
   function getFormSettings() {
-    // Do not change the numeric input when Forever is toggled.
     const forever = $("finishedHoldForever").checked;
     const holdVal = Number($("finishedHoldMs").value || 0);
     const holdToSave = forever ? 0 : Math.max(0, holdVal);
@@ -134,17 +156,12 @@
     };
   }
 
+  // ---------- Actions ----------
   async function onSave() {
     const newSettings = getFormSettings();
     await chrome.storage.sync.set({ settings: newSettings });
 
-    // Notify tabs to re-apply settings
-    try {
-      const tabs = await chrome.tabs.query({});
-      for (const t of tabs) {
-        try { chrome.tabs.sendMessage(t.id, { type: "APPLY_SETTINGS" }); } catch {}
-      }
-    } catch {}
+    await broadcastApply();
 
     settings = { ...DEFAULTS, ...newSettings };
     showStatus("Saved ✓");
@@ -184,7 +201,7 @@
         await chrome.storage.sync.set({ sites });
         renderSitesTable();
         showStatus(`Site ${host}: ${cfg.enabled ? "enabled" : "disabled"}`);
-        broadcastApply();
+        await broadcastApply();
       });
       const btnRemove = document.createElement("button");
       btnRemove.textContent = "Remove";
@@ -193,7 +210,7 @@
         await chrome.storage.sync.set({ sites });
         renderSitesTable();
         showStatus(`Removed site override: ${host}`);
-        broadcastApply();
+        await broadcastApply();
       });
 
       tdActions.appendChild(btnToggle);
@@ -223,7 +240,7 @@
     renderSitesTable();
     $("finishedEnabledThisSite").checked = cur.finishedEnabled ?? true;
     showStatus(`${canon}: ${cur.enabled ? "enabled" : "disabled"}`);
-    broadcastApply();
+    await broadcastApply();
   }
 
   async function onApplySitePrefs() {
@@ -241,17 +258,7 @@
     await chrome.storage.sync.set({ sites });
     renderSitesTable();
     showStatus(`${canon}: Finished banner ${cur.finishedEnabled ? "shown" : "hidden"}`);
-    broadcastApply();
-  }
-
-  function broadcastApply() {
-    try {
-      chrome.tabs.query({}, (tabs) => {
-        for (const t of tabs) {
-          try { chrome.tabs.sendMessage(t.id, { type: "APPLY_SETTINGS" }); } catch {}
-        }
-      });
-    } catch {}
+    await broadcastApply();
   }
 
   function showStatus(msg) {
