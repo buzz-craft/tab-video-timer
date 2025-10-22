@@ -9,6 +9,7 @@ Format inspired by Keep a Changelog. Versioning: SemVer.
 
 ### Changed
 - **content.js:** uses `prefixLivePlaying` for live elapsed titles and `prefixVODPlaying` for VOD countdown titles. Falls back to legacy `prefixPlaying` for existing users.
+- **Options UI labels:** renamed to **Live Title**, **VOD Title**, and **Paused Title** for clarity.
 
 ### Migration
 - If you previously customized `prefixPlaying`, it is **used for both** new fields **until you Save** in Options. No action required unless you want different prefixes for LIVE and VOD.
