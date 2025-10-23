@@ -1,22 +1,23 @@
 // content.js
-// Twitch: prefer H:MM:SS from UI (if present) so hours never get dropped.
-// - The UI elapsed parser scans ALL matches, prioritizes H:MM:SS,
-//   and falls back to the longest plausible value when needed.
-// - Adds separate prefixes: prefixLivePlaying, prefixVODPlaying (paused uses prefixPaused).
-// - Keeps legacy prefixPlaying as a fallback for existing users.
+// Immediate hide-guard for LIVE/VOD titles:
+// - Start/stop guard directly on visibility/page/window events (no timer reliance).
+// - Strong guard: watches <title> and <head> (for SPA replacement) + periodic enforcement.
+// - Per-tab "Hide when inactive" override supported.
 
 if (window.top === window.self) {
   (function () {
     const DEFAULTS = {
-      // NEW: split playing prefixes
-      prefixPlaying: "⏳",           // legacy fallback for older settings
-      prefixLivePlaying: "🔴 LIVE",  // live playing prefix
-      prefixVODPlaying: "⏳",        // VOD playing prefix
+      // legacy fallback
+      prefixPlaying: "⏳",
+      // split playing prefixes
+      prefixLivePlaying: "🔴 LIVE",
+      prefixVODPlaying: "⏳",
+      // shared paused
       prefixPaused: "⏸",
       finishedPrefix: "✓ Finished",
       finishedHoldMs: 0,
       updateIntervalMs: 250,
-      defaultEnabled: false, // OFF unless user enables in Options
+      defaultEnabled: false,
       hideWhenInactive: false,
       liveShowElapsed: true,
       liveStickMs: 8000,
@@ -44,29 +45,29 @@ if (window.top === window.self) {
     let enabledForHost = false;
     let finishedEnabledForHost = true;
 
-    // Per-tab override (null => follow settings)
-    let localEnabledOverride = null;
+    // Per-tab overrides
+    let localEnabledOverride = null;      // true | false | null
+    let localHideInactiveOverride = null; // true | false | null
 
-    let lastApplied = "";          // last full title we set (with timer)
+    let lastApplied = "";
     let finishedUntil = 0;
     let lastHref = location.href;
 
     const ytVideoIdFromUrl = (url) => { try { return new URL(url, location.origin).searchParams.get("v") || ""; } catch { return ""; } };
     let currentVid = ytVideoIdFromUrl(location.href);
 
-    // Track the actual <video> node identity (resets on Twitch stream swap)
     let currentVideoNode = null;
 
     // live session
     let isLive = false;
-    let liveStartMs = null;         // authoritative start timestamp
-    let fallbackLiveStartMs = null; // "now" until we discover real start
+    let liveStartMs = null;
+    let fallbackLiveStartMs = null;
     let lastElapsedShownSec = 0;
 
     // misc
     let sessionActive = false;
     let lastIsPlaying = false;
-    let pausedSnapshot = null; // { kind: "live"|"vod", elapsedSec?|remainingSec? }
+    let pausedSnapshot = null;
     let navAtMs = Date.now();
     let dvrQuarantineUntil = 0;
     let intervalId = null;
@@ -74,20 +75,21 @@ if (window.top === window.self) {
     // enablement transition tracking
     let prevEffectiveEnabled = null;
 
-    // Twitch stream identity tracking (prevents carry-over across raids/host/switches)
-    let lastTwitchIdentity = ""; // channel::streamId::title
+    // Twitch stream identity
+    let lastTwitchIdentity = "";
+
+    // ---------- hide guard ----------
+    let hideGuardActive = false;
+    let hideBaseTitle = "";
+    let titleObserver = null;
+    let headObserver = null;
+    let hideEnforcerId = null;
 
     // ---------- utils ----------
     const clamp = (n, min, max) => Math.max(min, Math.min(n, max));
     const nowMs = () => Date.now();
 
-    // decoration helpers
-    // Matches:
-    //   ⏳ 12:34[(:56)] • Title
-    //   ⏸ 12:34[(:56)] • Title
-    //   🔴 LIVE 1:23:45 • Title
-    //   ✓ Finished • Title
-    // Keep tight to avoid stripping legitimate titles.
+    // decoration helpers (used only in fallbacks; guard path avoids regex)
     const DECOR_RE = /^(?:[\u23F3\u23F8]\uFE0F?\s+\d{1,2}:\d{2}(?::\d{2})?\s+•\s+|\u{1F534}\s+LIVE\s+\d{1,2}:\d{2}(?::\d{2})?\s+•\s+|✓\s+Finished\s+•\s+)/u;
     const isDecorated = (t) => DECOR_RE.test(t || "");
     const stripDecor = (t) => (t || "").replace(DECOR_RE, "");
@@ -97,11 +99,11 @@ if (window.top === window.self) {
       const h = Math.floor(totalSeconds / 3600);
       const m = Math.floor((totalSeconds % 3600) / 60);
       const s = totalSeconds % 60;
-      if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-      return `${m}:${String(s).padStart(2, "0")}`;
+      return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+                   : `${m}:${String(s).padStart(2, "0")}`;
     }
 
-    // ---- Base title resolvers (fresh every render) ----
+    // ---- Base title resolvers ----
     function getYouTubePlayerResponse() {
       try {
         const y = window.ytInitialPlayerResponse || window.ytplayer?.config?.args?.player_response;
@@ -126,8 +128,6 @@ if (window.top === window.self) {
 
       return stripDecor(document.title || "").trim();
     }
-
-    // Twitch fresh title (prevents stale names)
     function getTwitchTitleFresh() {
       const candidates = [
         '[data-a-target="stream-title"]',
@@ -144,7 +144,6 @@ if (window.top === window.self) {
       if (og && og.trim()) return og.trim();
       return stripDecor(document.title || "").trim();
     }
-
     function currentBaseTitle() {
       if (isYouTube()) return getYouTubeTitleFresh();
       if (isTwitch()) return getTwitchTitleFresh();
@@ -157,7 +156,6 @@ if (window.top === window.self) {
     function twitchChannelLogin() {
       const seg = (location.pathname || "/").split("/").filter(Boolean)[0] || "";
       if (seg && !["videos", "directory", "p"].includes(seg)) return seg.toLowerCase();
-
       try {
         const cand = document.querySelector('meta[property="og:url"]')?.getAttribute("content") ||
                      document.querySelector('link[rel="canonical"]')?.href || "";
@@ -166,7 +164,6 @@ if (window.top === window.self) {
           if (parts[0] && !["videos", "directory", "p"].includes(parts[0])) return parts[0].toLowerCase();
         }
       } catch {}
-
       const link = document.querySelector('[data-a-target="profile-link"], a[href^="/"][data-test-selector="user-menu__toggle"]');
       if (link) {
         try {
@@ -177,13 +174,8 @@ if (window.top === window.self) {
       }
       return "";
     }
-
     function getWindowApollo() {
-      try {
-        const w = window;
-        const ap = w.__APOLLO_STATE__;
-        if (ap && typeof ap === "object") return ap;
-      } catch {}
+      try { const ap = window.__APOLLO_STATE__; if (ap && typeof ap === "object") return ap; } catch {}
       return null;
     }
     function parseApolloFromScripts() {
@@ -197,9 +189,7 @@ if (window.top === window.self) {
       }
       return null;
     }
-    function getApollo() {
-      return getWindowApollo() || parseApolloFromScripts();
-    }
+    function getApollo() { return getWindowApollo() || parseApolloFromScripts(); }
 
     function findLiveStartMsFromApollo(ap) {
       if (!ap) return null;
@@ -219,7 +209,6 @@ if (window.top === window.self) {
       for (const k in ap) consider(ap[k]);
       return best;
     }
-
     function findTwitchStreamIdFromApollo(ap) {
       if (!ap) return "";
       for (const k in ap) {
@@ -236,7 +225,6 @@ if (window.top === window.self) {
       }
       return "";
     }
-
     function parseStartFromJsonLd() {
       const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
       const walk = (obj) => {
@@ -252,34 +240,20 @@ if (window.top === window.self) {
         return null;
       };
       for (const s of scripts) {
-        try {
-          const data = JSON.parse(s.textContent || "{}");
-          const ms = walk(data);
-          if (ms) return ms;
-        } catch {}
+        try { const data = JSON.parse(s.textContent || "{}"); const ms = walk(data); if (ms) return ms; } catch {}
       }
       return null;
     }
     function findLiveStartMsFromMeta() {
       const metaRelease = document.querySelector('meta[property="og:video:release_date"], meta[property="video:release_date"]');
       if (metaRelease?.content) {
-        const t = Date.parse(metaRelease.content);
-        if (!Number.isNaN(t)) return t;
+        const t = Date.parse(metaRelease.content); if (!Number.isNaN(t)) return t;
       }
       const tEl = document.querySelector('time[datetime]');
       if (tEl) {
-        const t = Date.parse(tEl.getAttribute('datetime') || "");
-        if (!Number.isNaN(t)) return t;
+        const t = Date.parse(tEl.getAttribute('datetime') || ""); if (!Number.isNaN(t)) return t;
       }
       return null;
-    }
-    function findLiveStartMsGeneric() {
-      const ap = getApollo();
-      return (
-        findLiveStartMsFromApollo(ap) ||
-        parseStartFromJsonLd() ||
-        findLiveStartMsFromMeta()
-      );
     }
 
     // ---------- Twitch UI elapsed-time reader ----------
@@ -296,13 +270,10 @@ if (window.top === window.self) {
         if (sec <= 0 || sec > 48 * 3600) continue;
         if (best == null ||
             (h > 0 && best.h === 0) ||
-            (h === best.h && sec > best.sec)) {
-          best = { h, sec };
-        }
+            (h === best.h && sec > best.sec)) best = { h, sec };
       }
       return best ? best.sec : null;
     }
-
     function parseWordsToSec(txt) {
       const lower = txt.toLowerCase();
       const hm = /(\d+)\s*h(?:ou)?rs?/.exec(lower);
@@ -315,7 +286,6 @@ if (window.top === window.self) {
       if (!found || total <= 0 || total > 48 * 3600) return null;
       return total;
     }
-
     function candidateElapsedNodes() {
       const sel = [
         '[data-a-target="stream-title"]',
@@ -330,7 +300,6 @@ if (window.top === window.self) {
       const nodes = Array.from(document.querySelectorAll(sel));
       return nodes.slice(0, 150);
     }
-
     function twitchUiElapsedSec() {
       let bestSec = null;
       let found3part = false;
@@ -338,8 +307,7 @@ if (window.top === window.self) {
       const regions = candidateElapsedNodes();
       for (const el of regions) {
         const texts = new Set();
-        const t = (el.textContent || "").trim();
-        if (t) texts.add(t);
+        const t = (el.textContent || "").trim(); if (t) texts.add(t);
         const aria = el.getAttribute && (el.getAttribute("aria-label") || el.getAttribute("title"));
         if (aria) texts.add(aria.trim());
 
@@ -348,18 +316,12 @@ if (window.top === window.self) {
           if (clockSec != null) {
             const hasH = /\d{1,2}:[0-5]\d:[0-5]\d/.test(txt);
             if (hasH) found3part = true;
-            if (
-              bestSec == null ||
-              (found3part && !/\d{1,2}:[0-5]\d:[0-5]\d/.test(`00:${fmtHMS(bestSec)}`)) ||
-              clockSec > bestSec
-            ) {
-              bestSec = clockSec;
-            }
+            if (bestSec == null ||
+                (found3part && !/\d{1,2}:[0-5]\d:[0-5]\d/.test(`00:${fmtHMS(bestSec)}`)) ||
+                clockSec > bestSec) bestSec = clockSec;
           }
           const wordSec = parseWordsToSec(txt);
-          if (wordSec != null) {
-            if (bestSec == null || (!found3part && wordSec > bestSec)) bestSec = wordSec;
-          }
+          if (wordSec != null) { if (bestSec == null || (!found3part && wordSec > bestSec)) bestSec = wordSec; }
         }
       }
 
@@ -377,7 +339,6 @@ if (window.top === window.self) {
       }
       return bestSec;
     }
-
     function maybeSnapToTwitchUIElapsed() {
       if (!isTwitch() || !settings.liveShowElapsed) return;
       const elapsed = twitchUiElapsedSec();
@@ -400,15 +361,6 @@ if (window.top === window.self) {
       if (document.title !== newTitle) document.title = newTitle;
       lastApplied = newTitle;
     }
-    function restoreTitleOnceIfDecorated() {
-      const raw = document.title || "";
-      if (isDecorated(raw)) {
-        const clean = stripDecor(raw);
-        if (document.title !== clean) document.title = clean;
-      }
-      lastApplied = "";
-    }
-
     function hardResetLiveState() {
       isLive = false;
       liveStartMs = null;
@@ -452,6 +404,11 @@ if (window.top === window.self) {
       const entryRaw  = sitesRaw[rawHost];
       const entry = entryCanon ?? entryRaw ?? null;
       finishedEnabledForHost = entry?.finishedEnabled ?? true;
+    }
+    function currentHideInactiveSetting() {
+      const base = (settings.hideWhenInactive === true);
+      if (localHideInactiveOverride === null) return base;
+      return !!localHideInactiveOverride;
     }
 
     // ---------- live detection ----------
@@ -534,10 +491,9 @@ if (window.top === window.self) {
       return els[0] || null;
     }
 
-    // ---------- observers ----------
+    // ---------- observers (non-hide) ----------
     let bodyObserver = null;
-    let headObserver = null;
-
+    let metaObserver = null;
     function startObservers() {
       if (!bodyObserver) {
         bodyObserver = new MutationObserver(() => {
@@ -551,15 +507,87 @@ if (window.top === window.self) {
         });
         bodyObserver.observe(document.body, { childList: true, subtree: true });
       }
-      if (!headObserver) {
-        headObserver = new MutationObserver(() => { setTimeout(tick, 0); });
-        headObserver.observe(document.head || document.documentElement, { childList: true, subtree: true, attributes: true });
+      if (!metaObserver) {
+        metaObserver = new MutationObserver(() => { setTimeout(tick, 0); });
+        metaObserver.observe(document.head || document.documentElement, { childList: true, subtree: true, attributes: true });
       }
     }
     function stopObservers() {
-      try { bodyObserver?.disconnect(); headObserver?.disconnect(); } catch {}
-      bodyObserver = null; headObserver = null;
+      try { bodyObserver?.disconnect(); metaObserver?.disconnect(); } catch {}
+      bodyObserver = null; metaObserver = null;
     }
+
+    // ---------- hide guard helpers ----------
+    function getTitleElement() {
+      let t = document.querySelector("head > title");
+      if (!t) {
+        t = document.createElement("title");
+        (document.head || document.documentElement).appendChild(t);
+      }
+      return t;
+    }
+    function attachTitleObserver(baseTitle) {
+      try {
+        const titleEl = getTitleElement();
+        if (titleObserver) titleObserver.disconnect();
+        const enforce = () => { if (document.title !== baseTitle) document.title = baseTitle; };
+        enforce();
+        titleObserver = new MutationObserver(enforce);
+        titleObserver.observe(titleEl, { childList: true, characterData: true, subtree: true });
+      } catch {}
+    }
+    function attachHeadObserver(baseTitle) {
+      try {
+        const head = document.head || document.documentElement;
+        if (headObserver) headObserver.disconnect();
+        headObserver = new MutationObserver(() => {
+          // If <title> was replaced, reattach title observer.
+          attachTitleObserver(baseTitle);
+        });
+        headObserver.observe(head, { childList: true, subtree: true });
+      } catch {}
+    }
+    function hideGuardStartStrong() {
+      if (hideGuardActive) return;
+      hideBaseTitle = currentBaseTitle();
+      try { document.title = hideBaseTitle; } catch {}
+      attachTitleObserver(hideBaseTitle);
+      attachHeadObserver(hideBaseTitle);
+      if (hideEnforcerId) clearInterval(hideEnforcerId);
+      hideEnforcerId = setInterval(() => {
+        try {
+          if (document.title !== hideBaseTitle) document.title = hideBaseTitle;
+          attachTitleObserver(hideBaseTitle);
+        } catch {}
+      }, 800);
+      hideGuardActive = true;
+    }
+    function hideGuardStopStrong() {
+      if (!hideGuardActive) return;
+      try { titleObserver?.disconnect(); headObserver?.disconnect(); } catch {}
+      titleObserver = null; headObserver = null;
+      if (hideEnforcerId) { clearInterval(hideEnforcerId); hideEnforcerId = null; }
+      hideGuardActive = false;
+      hideBaseTitle = "";
+    }
+
+    // ---------- immediate guard hooks (NEW) ----------
+    function maybeToggleHideGuardImmediate(reason) {
+      const hideInactive = currentHideInactiveSetting();
+      const hiddenNow = document.visibilityState === "hidden";
+      if (hideInactive && hiddenNow) {
+        hideGuardStartStrong();          // act immediately on hide
+      } else if (hideGuardActive) {
+        hideGuardStopStrong();           // stop guard immediately on show
+        setTimeout(() => { try { tick(); } catch {} }, 0); // prompt redraw
+      }
+    }
+
+    document.addEventListener("visibilitychange", () => { maybeToggleHideGuardImmediate("visibilitychange"); }, { capture: true });
+    window.addEventListener("pagehide", () => { maybeToggleHideGuardImmediate("pagehide"); }, { capture: true });
+    window.addEventListener("pageshow", () => { maybeToggleHideGuardImmediate("pageshow"); }, { capture: true });
+    window.addEventListener("blur", () => { maybeToggleHideGuardImmediate("blur"); }, { capture: true });
+    window.addEventListener("focus", () => { maybeToggleHideGuardImmediate("focus"); }, { capture: true });
 
     // ---------- main tick ----------
     function tick() {
@@ -567,20 +595,20 @@ if (window.top === window.self) {
       computeEnabledFlags();
 
       const visible = document.visibilityState === "visible";
-      const hiddenPolicy = settings.hideWhenInactive && !visible;
+      const hideInactive = currentHideInactiveSetting();
+      const hiddenPolicy = hideInactive && !visible;
       const effectiveEnabled = enabledForHost && !hiddenPolicy;
 
-      if (prevEffectiveEnabled !== effectiveEnabled) {
-        if (!effectiveEnabled) {
-          restoreTitleOnceIfDecorated();
-        } else {
-          lastApplied = "";
-          hardResetLiveState();
-        }
-        prevEffectiveEnabled = effectiveEnabled;
+      // Start/stop guard if interval-based detection sees a mismatch (backup)
+      if (!effectiveEnabled) {
+        hideGuardStartStrong();
+      } else if (hideGuardActive) {
+        hideGuardStopStrong();
       }
+
       if (!effectiveEnabled) return;
 
+      // Twitch stream identity change -> true reset
       if (isTwitch()) {
         const ident = currentTwitchStreamIdentity();
         if (ident && ident !== lastTwitchIdentity) {
@@ -591,6 +619,7 @@ if (window.top === window.self) {
         }
       }
 
+      // For YouTube, only act on watch pages
       if (isYouTube() && !isYouTubeWatch()) return;
 
       const mediaPlaying = getPlayingMedia();
@@ -611,7 +640,7 @@ if (window.top === window.self) {
         const dur = Number(mediaPlaying.duration);
         const strongLive = isStrongLive(mediaPlaying);
 
-        // YouTube-only DVR quarantine to avoid 59:59 false VOD
+        // YouTube-only DVR quarantine
         if (isYouTubeWatch() && !strongLive && looksLikeDvrHour(dur)) {
           const sinceNav = nowMs() - navAtMs;
           const grace = Number(settings.ytNavGraceMs) || 2500;
@@ -622,7 +651,6 @@ if (window.top === window.self) {
         if (strongLive && settings.liveShowElapsed) {
           isLive = true;
 
-          // Acquire/refresh liveStartMs
           if (isYouTube()) {
             const { startMs } = getYouTubeLiveInfo();
             if (startMs && (liveStartMs == null || Math.abs(liveStartMs - startMs) > 1000)) liveStartMs = startMs;
@@ -648,7 +676,7 @@ if (window.top === window.self) {
           return;
         }
 
-        // Not strong-live -> VOD
+        // VOD
         hardResetLiveState();
 
         if (inDvrQuarantine()) return;
@@ -667,7 +695,6 @@ if (window.top === window.self) {
         const strongLive = isStrongLive(anyMedia);
 
         if (strongLive && settings.liveShowElapsed) {
-          // Keep probing for start while paused, too
           if (isYouTube()) {
             const { startMs } = getYouTubeLiveInfo();
             if (startMs && (liveStartMs == null || Math.abs(liveStartMs - startMs) > 1000)) liveStartMs = startMs;
@@ -714,8 +741,7 @@ if (window.top === window.self) {
           return;
         }
       }
-
-      // No media -> do nothing (leave page title alone)
+      // No media -> leave title alone
     }
 
     // ---------- wiring ----------
@@ -723,7 +749,6 @@ if (window.top === window.self) {
       try {
         const store = await chrome.storage.sync.get(["settings", "sites"]);
         const stored = store.settings || {};
-        // Merge with new defaults while preserving legacy prefixPlaying fallback
         settings = { ...DEFAULTS, ...stored };
         if (stored.defaultEnabled === undefined) settings.defaultEnabled = DEFAULTS.defaultEnabled;
 
@@ -738,7 +763,7 @@ if (window.top === window.self) {
         if (isTwitch()) {
           lastTwitchIdentity = currentTwitchStreamIdentity();
         }
-      } catch { /* fail-open */ }
+      } catch {}
     }
 
     function startLoop() {
@@ -768,6 +793,7 @@ if (window.top === window.self) {
     });
     document.addEventListener("yt-page-data-updated", () => { setTimeout(tick, 150); });
 
+    // Keep, but immediate hooks above handle guard without waiting for tick()
     document.addEventListener("visibilitychange", tick);
 
     chrome.storage.onChanged.addListener((changes, area) => {
@@ -792,29 +818,56 @@ if (window.top === window.self) {
 
       if (msg.type === "APPLY_SETTINGS") {
         loadSettings().then(() => { startObservers(); startLoop(); });
+        return;
       }
 
-      // per-tab enable/disable from popup
       if (msg.type === "SET_LOCAL_ENABLED") {
-        localEnabledOverride = !!msg.enabled;  // true/false
-        prevEffectiveEnabled = null;           // force edge handling next tick
+        localEnabledOverride = !!msg.enabled;
+        prevEffectiveEnabled = null;
         startLoop();
         sendResponse?.({ ok: true, enabled: localEnabledOverride });
         return;
       }
-
       if (msg.type === "GET_LOCAL_ENABLED") {
         computeEnabledFlags();
         sendResponse?.({ override: localEnabledOverride, effective: enabledForHost });
+        return;
+      }
+
+      // Per-tab hide-when-inactive override
+      if (msg.type === "SET_LOCAL_HIDE_INACTIVE") {
+        if (msg.enabled === null || msg.enabled === undefined) {
+          localHideInactiveOverride = null;
+        } else {
+          localHideInactiveOverride = !!msg.enabled;
+        }
+        // Apply immediately (and toggle guard if needed)
+        maybeToggleHideGuardImmediate("message");
+        setTimeout(() => { try { tick(); } catch {} }, 0);
+        sendResponse?.({
+          ok: true,
+          override: localHideInactiveOverride,
+          effectiveHide: currentHideInactiveSetting() === true
+        });
+        return;
+      }
+      if (msg.type === "GET_LOCAL_HIDE_INACTIVE") {
+        sendResponse?.({
+          ok: true,
+          override: (localHideInactiveOverride === null ? null : !!localHideInactiveOverride),
+          global: !!settings.hideWhenInactive,
+          effective: currentHideInactiveSetting() === true
+        });
         return;
       }
     });
 
     (async () => { await loadSettings(); startObservers(); startLoop(); })();
 
-    window.addEventListener("beforeunload", () => { try { stopObservers(); } catch {} });
+    window.addEventListener("beforeunload", () => {
+      try { hideGuardStopStrong(); stopObservers(); } catch {}
+    });
 
-    // ---- identity helper (kept last to avoid hoist noise) ----
     function currentTwitchStreamIdentity() {
       if (!isTwitch()) return "";
       const channel = twitchChannelLogin();
