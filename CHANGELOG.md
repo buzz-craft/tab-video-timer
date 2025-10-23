@@ -2,6 +2,17 @@
 All notable changes to this project will be documented in this file.
 Format inspired by Keep a Changelog. Versioning: SemVer.
 
+## 1.1.3 — 2025-10-23
+### Fixed
+- **Hide-when-inactive (LIVE streams):** titles no longer freeze when switching tabs/windows. Implemented an **immediate, strong hide-guard** that:
+  - Starts/stops instantly on `visibilitychange`, `pagehide/pageshow`, and `blur/focus`.
+  - Observes `<title>` **and** `<head>` to survive SPA `<title>` replacement on YouTube/Twitch.
+  - Runs a lightweight periodic enforcer while hidden to keep the **base page title** visible.
+
+### Notes
+- No behavior change for VOD hiding (already correct); LIVE now matches it.
+- No new permissions. No analytics.
+
 ## 1.1.2 — 2025-10-21
 ### Added
 - **Separate playing prefixes:** `prefixLivePlaying` (default: `🔴 LIVE`) and `prefixVODPlaying` (default: `⏳`).
@@ -9,7 +20,6 @@ Format inspired by Keep a Changelog. Versioning: SemVer.
 
 ### Changed
 - **content.js:** uses `prefixLivePlaying` for live elapsed titles and `prefixVODPlaying` for VOD countdown titles. Falls back to legacy `prefixPlaying` for existing users.
-- **Options UI labels:** renamed to **Live Title**, **VOD Title**, and **Paused Title** for clarity.
 
 ### Migration
 - If you previously customized `prefixPlaying`, it is **used for both** new fields **until you Save** in Options. No action required unless you want different prefixes for LIVE and VOD.
