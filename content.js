@@ -10,7 +10,7 @@ if (window.top === window.self) {
       // legacy fallback
       prefixPlaying: "⏳",
       // split playing prefixes
-      prefixLivePlaying: "🔴 LIVE",
+      prefixLivePlaying: "🔴",
       prefixVODPlaying: "⏳",
       // shared paused
       prefixPaused: "⏸",
@@ -669,7 +669,7 @@ if (window.top === window.self) {
           const elapsedSec = clamp((nowMs() - originMs) / 1000, 0, 60 * 60 * 48);
           lastElapsedShownSec = elapsedSec;
 
-          const livePfx = (settings.prefixLivePlaying ?? settings.prefixPlaying ?? "🔴 LIVE");
+          const livePfx = (settings.prefixLivePlaying ?? settings.prefixPlaying ?? "🔴");
           safeSetTitle(`${livePfx} ${fmtHMS(elapsedSec)} • ${baseTitle}`);
           lastIsPlaying = true;
           pausedSnapshot = null;

@@ -6,7 +6,7 @@
   const DEFAULTS = {
     // legacy fallback kept for migration
     prefixPlaying: "⏳",
-    prefixLivePlaying: "🔴 LIVE",
+    prefixLivePlaying: "🔴",
     prefixVODPlaying: "⏳",
     prefixPaused: "⏸",
     finishedPrefix: "✓ Finished",
