@@ -1,6 +1,6 @@
 // popup.js
-// Label tweak: show "Enable timer" first when no per-tab override is set (override === null).
-// Functionality unchanged: first click sets override=true for this tab, then toggles.
+// Per-tab Hide-when-inactive: query/set via content script (no global write).
+// Keeps existing mute/per-site logic intact.
 
 (async () => {
   // ---------- helpers ----------
@@ -81,21 +81,17 @@
     els.toggleSiteBtn.setAttribute("aria-pressed", isEnabled ? "true" : "false");
   }
 
-  // Ask content script for local override + effective state.
-  // We use override strictly for UI: if override is null => show "Enable timer".
   async function queryTabEnable(tabId) {
     try {
       const res = await chrome.tabs.sendMessage(tabId, { type: "GET_LOCAL_ENABLED" });
       const override = res?.override ?? null;
       const effective = !!res?.effective;
-      // UI should show "Enable timer" when override is unset (null)
       const enabledForLabel = (override === null) ? false : !!override;
       return { ok: true, enabledForLabel, override, effective };
     } catch {
       return { ok: false, enabledForLabel: false, override: null, effective: false };
     }
   }
-
   async function setTabEnable(tabId, enabled) {
     try {
       await chrome.tabs.sendMessage(tabId, { type: "SET_LOCAL_ENABLED", enabled: !!enabled });
@@ -111,6 +107,44 @@
     els.muteBtn.setAttribute("aria-pressed", finalMuted ? "true" : "false");
   }
 
+  // Per-tab Hide-when-inactive helpers
+  async function loadHideInactiveFromTab(tabId) {
+  if (!els.hideInactive) return;
+  // Keep current UI state unless we get a definitive answer
+  const prev = els.hideInactive.checked;
+
+  try {
+    const res = await chrome.tabs.sendMessage(tabId, { type: "GET_LOCAL_HIDE_INACTIVE" });
+    if (!res) return;
+
+    const hasOverride = ("override" in res) && res.override !== null;
+    // Show override if set; otherwise show the effective (global) value
+    els.hideInactive.checked = hasOverride ? !!res.override : !!res.effective;
+  } catch {
+    // Fallback: try global (doesn't flicker to unchecked if storage read fails)
+    try {
+      const { settings = {} } = await chrome.storage.sync.get("settings");
+      if (typeof settings.hideWhenInactive === "boolean") {
+        els.hideInactive.checked = settings.hideWhenInactive;
+      } else {
+        // leave as previous visual state
+        els.hideInactive.checked = prev;
+      }
+    } catch {
+      els.hideInactive.checked = prev;
+    }
+  }
+}
+
+  async function setHideInactiveForTab(tabId, value /* boolean|null */) {
+    // value === true/false to set override; null to clear override (follow global)
+    try {
+      await chrome.tabs.sendMessage(tabId, { type: "SET_LOCAL_HIDE_INACTIVE", enabled: value });
+    } catch {
+      // ignore
+    }
+  }
+
   // ---------- init ----------
   const tab = await getActiveTab();
   const host = getHost(tab?.url || "");
@@ -119,11 +153,14 @@
   // Default UI before we learn anything: show "Enable timer"
   setEnableButtonUI(false);
 
-  // Initialize Enable/Disable button from current tab state (using override for the label)
+  // Initialize per-tab enable button
   {
     const q = await queryTabEnable(tab.id);
     setEnableButtonUI(q.enabledForLabel);
   }
+
+  // Initialize per-tab hide-when-inactive checkbox
+  await loadHideInactiveFromTab(tab.id);
 
   // ---------- wire buttons ----------
   if (els.muteBtn) {
@@ -139,20 +176,41 @@
     els.toggleSiteBtn.addEventListener("click", async () => {
       if (!tab?.id) return;
       const current = await queryTabEnable(tab.id);
-      const next = !current.enabledForLabel; // if UI shows "Enable", clicking sets true
+      const next = !current.enabledForLabel;
       await setTabEnable(tab.id, next);
       setEnableButtonUI(next);
     });
   }
 
-  // Preferences (still global/site-level; optional to use)
+  // Per-tab Hide-when-inactive (NO global write)
   if (els.hideInactive) {
-    els.hideInactive.addEventListener("change", async () => {
-      const { settings = {} } = await chrome.storage.sync.get(["settings"]);
-      await chrome.storage.sync.set({ settings: { ...settings, hideWhenInactive: !!els.hideInactive.checked } });
+  els.hideInactive.addEventListener("change", async () => {
+    if (!tab?.id) return;
+
+    // Set per-tab override on the page
+    try {
+      const resp = await chrome.tabs.sendMessage(tab.id, {
+        type: "SET_LOCAL_HIDE_INACTIVE",
+        enabled: !!els.hideInactive.checked   // true/false; use null to clear override
+      });
+      // Confirm and correct the UI using the page's own echo
+      if (resp && ("override" in resp)) {
+        els.hideInactive.checked = resp.override === null ? !!resp.effectiveHide : !!resp.override;
+      } else {
+        // As a fallback, re-query
+        await loadHideInactiveFromTab(tab.id);
+      }
+      // Nudge that tab to re-evaluate immediately
       try { await chrome.tabs.sendMessage(tab.id, { type: "APPLY_SETTINGS" }); } catch {}
-    });
-  }
+    } catch {
+      // If the tab can't be reached, revert the UI to what the tab actually has
+      await loadHideInactiveFromTab(tab.id);
+    }
+  });
+}
+
+
+  // Site-level Finished toggle (unchanged)
   if (els.finishedSite) {
     els.finishedSite.addEventListener("change", async () => {
       const { sites = {}, settings = {} } = await chrome.storage.sync.get(["sites", "settings"]);
