@@ -1,0 +1,138 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  width:440px;height:280px;overflow:hidden;
+  background:#0b0f15;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  position:relative;
+}
+
+/* background glow blobs */
+.blob1{
+  position:absolute;width:320px;height:320px;border-radius:50%;
+  background:radial-gradient(circle,rgba(37,99,235,.28) 0%,transparent 70%);
+  top:-80px;left:-60px;
+}
+.blob2{
+  position:absolute;width:260px;height:260px;border-radius:50%;
+  background:radial-gradient(circle,rgba(96,165,250,.15) 0%,transparent 70%);
+  bottom:-60px;right:-40px;
+}
+
+/* subtle grid lines */
+.grid{
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);
+  background-size:28px 28px;
+}
+
+/* content */
+.content{
+  position:relative;z-index:2;
+  width:100%;height:100%;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:0;
+  padding:28px 32px;
+}
+
+/* icon area */
+.icon-row{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:14px;
+}
+.icon-box{
+  width:44px;height:44px;
+  background:linear-gradient(135deg,#1d4ed8,#2563eb);
+  border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;
+  box-shadow:0 4px 20px rgba(37,99,235,.5);
+}
+
+/* title */
+.title{
+  font-size:26px;font-weight:800;
+  color:#f1f5f9;
+  letter-spacing:-.6px;
+  line-height:1;
+  margin-bottom:10px;
+  text-align:center;
+}
+.title span{color:#60a5fa;}
+
+/* tab mockup strip */
+.tab-strip{
+  display:flex;flex-direction:column;gap:5px;
+  width:100%;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;
+  padding:10px 12px;
+  margin-bottom:14px;
+}
+.tab-row{
+  display:flex;align-items:center;gap:7px;
+  font-size:11px;
+}
+.tab-prefix{
+  font-weight:700;
+  flex-shrink:0;
+  font-variant-numeric:tabular-nums;
+}
+.tab-name{color:rgba(255,255,255,.45);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
+.p-vod{color:#60a5fa;}
+.p-live{color:#f87171;}
+.p-pause{color:#94a3b8;}
+.p-speed{color:#a78bfa;}
+
+/* tagline */
+.tagline{
+  font-size:13px;
+  color:#94a3b8;
+  text-align:center;
+  line-height:1.4;
+}
+.tagline strong{color:#e2e8f0;font-weight:600;}
+</style>
+</head>
+<body>
+<div class="blob1"></div>
+<div class="blob2"></div>
+<div class="grid"></div>
+
+<div class="content">
+  <div class="icon-row">
+    <div class="icon-box">⏱</div>
+  </div>
+
+  <div class="title">Tab Video <span>Timer</span></div>
+
+  <div class="tab-strip">
+    <div class="tab-row">
+      <span class="tab-prefix p-vod">⏳ 14:32</span>
+      <span class="tab-name">Python Full Course — Week 4</span>
+    </div>
+    <div class="tab-row">
+      <span class="tab-prefix p-live">🔴 1:23:45</span>
+      <span class="tab-name">LIVE — Twitch Stream</span>
+    </div>
+    <div class="tab-row">
+      <span class="tab-prefix p-speed">⏳ 8:02 @1.5×</span>
+      <span class="tab-name">Tutorial: Intro to CSS</span>
+    </div>
+  </div>
+
+  <div class="tagline">
+    Countdown · Elapsed · Speed-aware · Stats<br/>
+    <strong>No tracking. No ads. 100% local.</strong>
+  </div>
+</div>
+</body>
+</html>
