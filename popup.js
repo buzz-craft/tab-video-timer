@@ -44,9 +44,6 @@
   const displayHost = rawHost.replace(/^www\./, "") || "";
   const canonHost = displayHost.toLowerCase();
 
-  const hostEl = $("host");
-  if (hostEl) hostEl.textContent = displayHost;
-
   // -------------------------------------------------------------------------
   // Tab switching
   // -------------------------------------------------------------------------
