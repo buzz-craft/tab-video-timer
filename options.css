@@ -81,4 +81,50 @@ button:disabled { opacity: 0.6; cursor: default; }
   }
   button:hover { background: #242424; }
   button:active { background: #2b2b2b; }
+  .site-chip { border-color: #333; }
+  .site-chip.enabled { border-color: #3b82f6; background: #0f1f3d; }
 }
+
+/* Grid layout for paired fieldsets */
+fieldset.grid-2 {
+  border: none;
+  padding: 0;
+  margin: 0.6rem 0 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+fieldset.grid-2 > label { margin: 0; }
+
+/* Radio group (VOD mode etc.) */
+.radio-group { display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.4rem; }
+.label-block { display: block; margin-bottom: 0; font-size: 0.95rem; font-weight: 500; }
+
+.hint-text { margin: 0 0 0.5rem; font-size: 0.9rem; opacity: 0.75; }
+
+/* Streaming sites quick-enable grid */
+.sites-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.site-chip {
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.site-chip.enabled { border-color: #2563eb; background: #eff6ff; }
+.site-chip-inner {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  cursor: pointer;
+  user-select: none;
+  margin: 0;
+}
+.site-chip-inner input[type="checkbox"] { width: 14px; height: 14px; flex-shrink: 0; }
+.site-emoji { font-size: 15px; }
+.site-name  { font-size: 0.88rem; font-weight: 500; }

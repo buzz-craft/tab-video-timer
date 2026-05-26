@@ -224,6 +224,83 @@
   if (els.openOptions) els.openOptions.addEventListener("click", () => chrome.runtime.openOptionsPage());
   if (els.openShortcuts) els.openShortcuts.addEventListener("click", () => chrome.tabs.create({ url: "chrome://extensions/shortcuts" }));
 
+  // --- Video state display ---
+  function fmtSec(s) {
+    s = Math.max(0, Math.floor(s || 0));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const ss = s % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+    return `${m}:${String(ss).padStart(2, "0")}`;
+  }
+
+  function renderVideoState(state) {
+    const icon    = document.getElementById("statusIcon");
+    const text    = document.getElementById("statusText");
+    const tv      = document.getElementById("timeValue");
+    const pw      = document.getElementById("progressWrap");
+    const fill    = document.getElementById("progressFill");
+    const elapsed = document.getElementById("timeElapsed");
+    const dur     = document.getElementById("timeDuration");
+    const badge   = document.getElementById("liveBadge");
+
+    if (!icon || !text) return;
+
+    if (!state?.hasMedia) {
+      icon.textContent  = "📺";
+      text.textContent  = state?.enabled === false ? "Timer disabled for this site" : "No video detected";
+      tv.hidden = true; pw.hidden = true; badge.hidden = true;
+      return;
+    }
+
+    if (state.isLive) {
+      badge.hidden = false;
+      icon.textContent = "🔴";
+      text.textContent = state.isPlaying ? "Live · Playing" : "Live · Paused";
+      if (state.liveElapsed != null) {
+        tv.hidden = false;
+        tv.textContent = fmtSec(state.liveElapsed) + " elapsed";
+      } else {
+        tv.hidden = true;
+      }
+      pw.hidden = true;
+      return;
+    }
+
+    badge.hidden = true;
+    icon.textContent = state.isPlaying ? "▶" : "⏸";
+    text.textContent = state.isPlaying ? "Playing" : "Paused";
+
+    if (state.timeLeft != null && state.duration != null) {
+      tv.hidden = false;
+      const vodMode = state.vodTimerMode ?? "countdown";
+      tv.textContent = vodMode === "elapsed"
+        ? fmtSec(state.currentTime) + " watched"
+        : fmtSec(state.timeLeft)    + " remaining";
+
+      pw.hidden = false;
+      const pct = state.percent ?? 0;
+      fill.style.width = pct + "%";
+      elapsed.textContent = fmtSec(state.currentTime);
+      dur.textContent     = fmtSec(state.duration);
+    } else {
+      tv.hidden = true; pw.hidden = true;
+    }
+  }
+
+  let vsTimer = null;
+  async function pollVideoState() {
+    try {
+      const state = await chrome.tabs.sendMessage(tab.id, { type: "GET_VIDEO_STATE" });
+      renderVideoState(state);
+    } catch {
+      renderVideoState(null);
+    }
+  }
+  pollVideoState();
+  vsTimer = setInterval(pollVideoState, 1000);
+  window.addEventListener("unload", () => clearInterval(vsTimer));
+
   // Initial mute label
   try {
     const [{ result }] = await chrome.scripting.executeScript({

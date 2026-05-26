@@ -67,5 +67,18 @@ Format inspired by Keep a Changelog. Versioning: SemVer.
 ### Internal / Tooling
 - Initial packaging script.
 
+## 1.2.0 — 2026-05-26
+### Added
+- **VOD Timer Mode:** choose between **Countdown** (time remaining) or **Elapsed** (time watched) in Options. Both modes respect pause and playback speed.
+- **Popup video status card:** live view of current video state — icon, playing/paused label, and a large time display. Updates every second.
+- **Progress bar in popup:** visual bar showing how far through a VOD you are, with elapsed and total timestamps below it.
+- **Live stream status in popup:** LIVE badge, playing/paused label, and elapsed time for live streams.
+- **Configurable title separator:** change the ` • ` between the prefix and page title to any string via Options.
+- **% progress in tab title:** optional setting to append e.g. `(67%)` to the VOD timer in the tab title.
+- **Streaming sites quick-enable grid:** one-click enable/disable chips for 12 popular services (YouTube, Twitch, Netflix, Disney+, Prime Video, Hulu, Max, Peacock, Paramount+, Crunchyroll, Vimeo, Dailymotion) directly in Options.
+
+### Notes
+- No new permissions. No analytics.
+
 ## Unreleased
 - (add upcoming changes here)

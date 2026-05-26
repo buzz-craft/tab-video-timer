@@ -1,20 +1,22 @@
 # Tab Video Timer
 
 Adds a mini timer to your **tab title**:
-- **VOD:** time **remaining** (Playing / Paused)
+- **VOD:** time **remaining** or **elapsed** (Playing / Paused)
 - **LIVE (YouTube/Twitch):** time **elapsed** (count-up)
 
-Quick **Mute/Unmute**, per-site toggles, and a simple Options page.  
+Live video status in the popup, quick **Mute/Unmute**, per-site toggles, and a full Options page.  
 No tracking. Settings stay in your browser (Chrome Sync optional).
 
 ---
 
 ## Features
-- ⏳ **VOD countdown** in the tab title (respects pause + playback speed)
+- ⏳ **VOD timer** in the tab title — **countdown** (time remaining) or **elapsed** (time watched), your choice
 - 🔴 **LIVE elapsed** timer for YouTube & Twitch, with guards against bad timestamps/DVR quirks
+- 📊 **Popup status card** — live video state, large time display, and a progress bar with elapsed/total
+- 🎬 **Streaming sites grid** — one-click enable/disable for 12 services in Options
 - 🔇 **One-click Mute/Unmute** across iframes
-- ⚙️ **Per-site enable/disable** and **“Finished” banner** controls
-- 🧰 Options for titles/prefixes, update interval, Finished hold (including **Forever**)
+- ⚙️ **Per-site enable/disable** and **”Finished” banner** controls
+- 🧰 Options for title prefixes, separator, % progress, update interval, Finished hold (including **Forever**)
 - 🔒 No analytics; data stored in `chrome.storage.(sync|local)`
 
 ---
@@ -41,13 +43,17 @@ Or install unpacked (for development):
 ---
 
 ## Options
-- **Title labels (v1.1.2):**
+- **Title labels:**
   - **Live Title** → `prefixLivePlaying` (default: `🔴 LIVE`)
   - **VOD Title** → `prefixVODPlaying` (default: `⏳`)
   - **Paused Title** → `prefixPaused` (default: `⏸`)
+- **VOD Timer Mode (v1.2.0):** Countdown (time remaining) or Elapsed (time watched).
+- **Title Separator (v1.2.0):** customize the string between the timer and page title (default: ` • `).
+- **Show % progress (v1.2.0):** append e.g. `(67%)` to the VOD timer in the tab title.
 - **Finished hold (ms):**  
   - **Forever** checkbox holds the “Finished” title indefinitely (0 ms).  
-  - **Dynamic hint** shows **~seconds** when not Forever; **“Title will be held indefinitely”** when checked.
+  - **Dynamic hint** shows **~seconds** when not Forever; **”Title will be held indefinitely”** when checked.
+- **Streaming sites quick-enable (v1.2.0):** chip grid for 12 popular services.
 - **Per-site control:** enable/disable the timer and show/hide “Finished” on specific hosts.
 - **Update interval (ms)** and **Hide when tab inactive**.
 
