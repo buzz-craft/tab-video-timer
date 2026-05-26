@@ -4,6 +4,7 @@ Format inspired by Keep a Changelog. Versioning: SemVer.
 
 ## 2.0.1 — 2026-05-26
 ### Changed
+- **Extension icon:** redesigned at all sizes (16×16, 48×48, 128×128) — modern rounded-square with dark-blue gradient background and white hourglass; replaces the old flat cyan icon.
 - **Popup:** removed hostname display from header for a cleaner look.
 - **Popup footer:** Options and Shortcuts buttons centered with equal spacing; ellipsis removed from labels.
 - **Options:** removed Streaming Sites quick-enable grid; default enable behaviour is controlled by the "Enable by default on new sites" checkbox in Display settings.
