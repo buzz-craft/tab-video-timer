@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Tab Video Timer",
   "short_name": "Video Timer",
-  "version": "1.2.0",
-  "description": "Tab title timers for video/audio: countdown for VOD, elapsed for LIVE. Quick mute and per-site controls.",
+  "version": "2.0.1",
+  "description": "Tab title timers, watch-time stats, break reminders, and per-page video controls for VOD and live streams.",
   "icons": {
     "16": "icon16.png",
     "48": "icon48.png",
@@ -12,7 +12,8 @@
   "permissions": [
     "storage",
     "tabs",
-    "scripting"
+    "scripting",
+    "notifications"
   ],
   "host_permissions": [
     "<all_urls>"

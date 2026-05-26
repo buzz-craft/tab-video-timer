@@ -108,9 +108,71 @@
     </section>
 
     <section>
-      <h2>Streaming Sites</h2>
-      <p class="hint-text">Quickly enable or disable the timer on popular streaming services:</p>
-      <div class="sites-grid" id="streamingSites"></div>
+      <h2>Playback Display</h2>
+      <form-content>
+        <fieldset class="grid-2">
+          <label class="row">
+            <input id="speedAwareCountdown" type="checkbox" />
+            <span>Speed-aware countdown (adjusts for 1.5×, 2× etc.)</span>
+          </label>
+          <label class="row">
+            <input id="showChapters" type="checkbox" />
+            <span>Show YouTube chapter name in tab title</span>
+          </label>
+        </fieldset>
+        <fieldset class="grid-2" style="margin-top:0.75rem">
+          <label>
+            Page Overlay Position
+            <select id="overlayPosition">
+              <option value="bottom-right">Bottom-right</option>
+              <option value="bottom-left">Bottom-left</option>
+              <option value="top-right">Top-right</option>
+              <option value="top-left">Top-left</option>
+            </select>
+          </label>
+          <label class="row" style="margin-top:auto">
+            <input id="showOverlay" type="checkbox" />
+            <span>Show floating overlay on page by default</span>
+          </label>
+        </fieldset>
+      </form-content>
+      <div class="buttons" style="margin-top:0.8rem">
+        <button type="button" id="savePlayback">Save</button>
+      </div>
+      <div id="statusPlayback" aria-live="polite"></div>
+    </section>
+
+    <section>
+      <h2>Watch Time &amp; Alerts</h2>
+      <form-content>
+        <fieldset class="grid-2">
+          <label class="row">
+            <input id="trackWatchTime" type="checkbox" />
+            <span>Track watch time (used in popup Stats tab)</span>
+          </label>
+          <label class="row">
+            <input id="endNotification" type="checkbox" />
+            <span>Notify when video ends</span>
+          </label>
+        </fieldset>
+        <fieldset class="grid-2" style="margin-top:0.75rem">
+          <label>
+            Break reminder (minutes)
+            <input id="breakReminderMins" type="number" min="0" step="5" placeholder="0 = off" />
+            <span class="hint">Notifies after this many continuous minutes of watching. 0 = disabled.</span>
+          </label>
+          <label>
+            Daily limit (minutes)
+            <input id="dailyLimitMins" type="number" min="0" step="15" placeholder="0 = off" />
+            <span class="hint">Shows a warning bar in the popup when exceeded. 0 = disabled.</span>
+          </label>
+        </fieldset>
+      </form-content>
+      <div class="buttons" style="margin-top:0.8rem">
+        <button type="button" id="saveAlerts">Save</button>
+        <button type="button" id="clearStats">Clear Watch History</button>
+      </div>
+      <div id="statusAlerts" aria-live="polite"></div>
     </section>
 
     <section>

@@ -18,6 +18,14 @@
     vodTimerMode: 'countdown',
     showPercent: false,
     separator: ' • ',
+    speedAwareCountdown: true,
+    showChapters: true,
+    endNotification: false,
+    breakReminderMins: 0,
+    dailyLimitMins: 0,
+    trackWatchTime: true,
+    showOverlay: false,
+    overlayPosition: 'bottom-right',
   };
 
   const $ = (id) => document.getElementById(id);
@@ -40,7 +48,7 @@
     seedCurrentHostFromActiveTab();
     renderForm();
     renderSitesTable();
-    renderStreamingSites();
+
     wireEvents();
     syncHoldHint();
   }
@@ -53,6 +61,10 @@
 
     $("finishedHoldMs").addEventListener("input", syncHoldHint);
     $("finishedHoldForever").addEventListener("change", syncHoldHint);
+
+    $("savePlayback").addEventListener("click", onSavePlayback);
+    $("saveAlerts").addEventListener("click", onSaveAlerts);
+    $("clearStats").addEventListener("click", onClearStats);
   }
 
   async function loadAll() {
@@ -135,6 +147,16 @@
 
     $("separator").value   = settings.separator  ?? DEFAULTS.separator;
     $("showPercent").checked = !!settings.showPercent;
+
+    $("speedAwareCountdown").checked = settings.speedAwareCountdown ?? DEFAULTS.speedAwareCountdown;
+    $("showChapters").checked        = settings.showChapters        ?? DEFAULTS.showChapters;
+    $("showOverlay").checked         = settings.showOverlay         ?? DEFAULTS.showOverlay;
+    $("overlayPosition").value       = settings.overlayPosition     ?? DEFAULTS.overlayPosition;
+
+    $("trackWatchTime").checked      = settings.trackWatchTime      ?? DEFAULTS.trackWatchTime;
+    $("endNotification").checked     = settings.endNotification     ?? DEFAULTS.endNotification;
+    $("breakReminderMins").value     = settings.breakReminderMins   ?? DEFAULTS.breakReminderMins;
+    $("dailyLimitMins").value        = settings.dailyLimitMins      ?? DEFAULTS.dailyLimitMins;
   }
 
   function syncHoldHint() {
@@ -167,6 +189,14 @@
       vodTimerMode: (document.querySelector('input[name="vodTimerMode"]:checked') || {}).value || 'countdown',
       showPercent:  $("showPercent").checked,
       separator:    $("separator").value !== undefined ? $("separator").value : ' • ',
+      speedAwareCountdown: $("speedAwareCountdown").checked,
+      showChapters:        $("showChapters").checked,
+      showOverlay:         $("showOverlay").checked,
+      overlayPosition:     $("overlayPosition").value || DEFAULTS.overlayPosition,
+      trackWatchTime:      $("trackWatchTime").checked,
+      endNotification:     $("endNotification").checked,
+      breakReminderMins:   Math.max(0, Number($("breakReminderMins").value) || 0),
+      dailyLimitMins:      Math.max(0, Number($("dailyLimitMins").value) || 0),
     };
   }
 
@@ -275,64 +305,46 @@
     await broadcastApply();
   }
 
-  function showStatus(msg) {
-    const s = $("status");
+  function showStatus(msg, elemId = "status") {
+    const s = $(elemId);
+    if (!s) return;
     s.textContent = msg;
     s.classList.add("show");
-    clearTimeout(showStatus._t);
-    showStatus._t = setTimeout(() => { s.textContent = ""; s.classList.remove("show"); }, 1600);
+    clearTimeout(showStatus["_t_" + elemId]);
+    showStatus["_t_" + elemId] = setTimeout(() => { s.textContent = ""; s.classList.remove("show"); }, 1600);
   }
-  // ---------- Streaming sites quick-enable ----------
-  const STREAMING_SITES = [
-    { host: 'youtube.com',       label: 'YouTube',     emoji: '📺' },
-    { host: 'twitch.tv',         label: 'Twitch',      emoji: '🎮' },
-    { host: 'netflix.com',       label: 'Netflix',     emoji: '🎬' },
-    { host: 'disneyplus.com',    label: 'Disney+',     emoji: '✨' },
-    { host: 'primevideo.com',    label: 'Prime Video', emoji: '🎥' },
-    { host: 'hulu.com',          label: 'Hulu',        emoji: '📡' },
-    { host: 'max.com',           label: 'Max (HBO)',   emoji: '🎭' },
-    { host: 'peacocktv.com',     label: 'Peacock',     emoji: '🦚' },
-    { host: 'paramountplus.com', label: 'Paramount+',  emoji: '⭐' },
-    { host: 'crunchyroll.com',   label: 'Crunchyroll', emoji: '🍥' },
-    { host: 'vimeo.com',         label: 'Vimeo',       emoji: '🎞️' },
-    { host: 'dailymotion.com',   label: 'Dailymotion', emoji: '📹' },
-  ];
 
-  function renderStreamingSites() {
-    const container = $("streamingSites");
-    if (!container) return;
-    container.innerHTML = '';
-    for (const site of STREAMING_SITES) {
-      const entry = sites[site.host] || null;
-      const enabled = entry ? !!entry.enabled : !!settings.defaultEnabled;
-      const wrap = document.createElement('div');
-      wrap.className = 'site-chip' + (enabled ? ' enabled' : '');
-      const lbl = document.createElement('label');
-      lbl.className = 'site-chip-inner';
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.checked = enabled;
-      cb.addEventListener('change', async () => {
-        const cur = sites[site.host] || { enabled: !!settings.defaultEnabled, finishedEnabled: true };
-        cur.enabled = cb.checked;
-        sites[site.host] = cur;
-        wrap.classList.toggle('enabled', cur.enabled);
-        await chrome.storage.sync.set({ sites });
-        renderSitesTable();
-        showStatus(`${site.label}: ${cur.enabled ? 'enabled' : 'disabled'}`);
-        await broadcastApply();
-      });
-      const em = document.createElement('span');
-      em.className = 'site-emoji';
-      em.textContent = site.emoji;
-      em.setAttribute('aria-hidden', 'true');
-      const nm = document.createElement('span');
-      nm.className = 'site-name';
-      nm.textContent = site.label;
-      lbl.appendChild(cb); lbl.appendChild(em); lbl.appendChild(nm);
-      wrap.appendChild(lbl);
-      container.appendChild(wrap);
-    }
+  async function onSavePlayback() {
+    const patch = {
+      speedAwareCountdown: $("speedAwareCountdown").checked,
+      showChapters:        $("showChapters").checked,
+      showOverlay:         $("showOverlay").checked,
+      overlayPosition:     $("overlayPosition").value || DEFAULTS.overlayPosition,
+    };
+    settings = { ...settings, ...patch };
+    await chrome.storage.sync.set({ settings });
+    await broadcastApply();
+    showStatus("Saved ✓", "statusPlayback");
+  }
+
+  async function onSaveAlerts() {
+    const patch = {
+      trackWatchTime:    $("trackWatchTime").checked,
+      endNotification:   $("endNotification").checked,
+      breakReminderMins: Math.max(0, Number($("breakReminderMins").value) || 0),
+      dailyLimitMins:    Math.max(0, Number($("dailyLimitMins").value) || 0),
+    };
+    settings = { ...settings, ...patch };
+    await chrome.storage.sync.set({ settings });
+    await broadcastApply();
+    showStatus("Saved ✓", "statusAlerts");
+  }
+
+  async function onClearStats() {
+    try {
+      await chrome.runtime.sendMessage({ type: 'CLEAR_STATS' });
+    } catch { /* background may not be listening yet */ }
+    showStatus("Watch history cleared", "statusAlerts");
   }
 
 })();

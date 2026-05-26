@@ -1,43 +1,95 @@
-// popup.js
-// Per-tab Hide-when-inactive: query/set via content script (no global write).
-// Keeps existing mute/per-site logic intact.
+// popup.js — Tab Video Timer v2.0
 
 (async () => {
-  // ---------- helpers ----------
+  // -------------------------------------------------------------------------
+  // Helpers
+  // -------------------------------------------------------------------------
   const $ = (id) => document.getElementById(id);
-
-  const els = {
-    host: $("host"),
-    live: $("liveBadge"),
-    muteBtn: $("mute"),
-    muteLabel: $("muteLabel"),
-    toggleSiteBtn: $("toggleSiteBtn"),
-    toggleSiteLabel: $("toggleSiteLabel"),
-    hideInactive: $("hideWhenInactive"),
-    finishedSite: $("finishedEnabledThisSite"),
-    openOptions: $("openOptions"),
-    openShortcuts: $("openShortcuts"),
-  };
 
   const getActiveTab = async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     return tab;
   };
 
-  const getHost = (url) => { try { return new URL(url).hostname; } catch { return ""; } };
+  const getHost = (url) => {
+    try { return new URL(url).hostname; } catch { return ""; }
+  };
 
-  // Try old content-script path (safe no-op if not present)
-  async function tryContentScriptToggle(tabId) {
-    try { await chrome.tabs.sendMessage(tabId, { type: "TOGGLE_MUTE" }); return true; } catch { return false; }
+  /** Format seconds as H:MM:SS or M:SS */
+  function fmtSec(s) {
+    s = Math.max(0, Math.floor(s || 0));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const ss = s % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+    return `${m}:${String(ss).padStart(2, "0")}`;
   }
 
-  // Runs in page with the user gesture from this click (works around Twitch autoplay rules)
+  /** Format seconds as human-readable watch time: "2h 34m", "45m", "< 1m" */
+  function fmtWatch(s) {
+    s = Math.max(0, Math.floor(s || 0));
+    if (s < 60) return "< 1m";
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    if (h > 0 && m > 0) return `${h}h ${m}m`;
+    if (h > 0) return `${h}h`;
+    return `${m}m`;
+  }
+
+  // -------------------------------------------------------------------------
+  // Tab / host setup
+  // -------------------------------------------------------------------------
+  const tab = await getActiveTab();
+  const rawHost = getHost(tab?.url || "");
+  const displayHost = rawHost.replace(/^www\./, "") || "";
+  const canonHost = displayHost.toLowerCase();
+
+  // -------------------------------------------------------------------------
+  // Tab switching
+  // -------------------------------------------------------------------------
+  let statsLoaded = false;
+
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const panelId = btn.dataset.panel;
+
+      // Update tab buttons
+      document.querySelectorAll(".tab-btn").forEach((b) => {
+        b.classList.toggle("active", b === btn);
+        b.setAttribute("aria-selected", b === btn ? "true" : "false");
+      });
+
+      // Update panels
+      document.querySelectorAll(".tab-panel").forEach((p) => {
+        p.classList.toggle("active", p.id === `panel-${panelId}`);
+      });
+
+      // Lazy-load stats on first open
+      if (panelId === "stats" && !statsLoaded) {
+        statsLoaded = true;
+        loadStats();
+      }
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Mute toggle
+  // -------------------------------------------------------------------------
+  async function tryContentScriptToggle(tabId) {
+    try {
+      await chrome.tabs.sendMessage(tabId, { type: "TOGGLE_MUTE" });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async function forcePageToggle(tabId) {
     const [{ result }] = await chrome.scripting.executeScript({
       target: { tabId },
       func: () => {
         const media = Array.from(document.querySelectorAll("video,audio"));
-        const anyAudible = media.some(v => !v.muted && v.volume > 0);
+        const anyAudible = media.some((v) => !v.muted && v.volume > 0);
         const wantMute = anyAudible;
 
         const clickIfVisible = (sel) => {
@@ -67,31 +119,60 @@
           } catch {}
         }
 
-        const nowAudible = media.some(v => !v.muted && v.volume > 0);
+        const nowAudible = media.some((v) => !v.muted && v.volume > 0);
         return { muted: !nowAudible };
       },
     });
     return result;
   }
 
-  // UI helpers for the per-tab enable button
-  function setEnableButtonUI(isEnabled) {
-    if (!els.toggleSiteBtn || !els.toggleSiteLabel) return;
-    els.toggleSiteLabel.textContent = isEnabled ? "Disable timer" : "Enable timer";
-    els.toggleSiteBtn.setAttribute("aria-pressed", isEnabled ? "true" : "false");
+  function updateMuteLabel(muted) {
+    const btn = $("mute");
+    const lbl = $("muteLabel");
+    if (!btn || !lbl) return;
+    lbl.textContent = muted ? "Unmute" : "Mute";
+    btn.querySelector(".btn-icon").textContent = muted ? "🔇" : "🔊";
+    btn.setAttribute("aria-pressed", muted ? "true" : "false");
   }
 
+  async function initMuteLabel(tabId) {
+    try {
+      const [{ result }] = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => {
+          const media = Array.from(document.querySelectorAll("video,audio"));
+          return { muted: !media.some((v) => !v.muted && v.volume > 0) };
+        },
+      });
+      updateMuteLabel(result?.muted ?? false);
+    } catch {}
+  }
+
+  const muteBtn = $("mute");
+  if (muteBtn) {
+    muteBtn.addEventListener("click", async () => {
+      if (!tab?.id) return;
+      await tryContentScriptToggle(tab.id);
+      const res = await forcePageToggle(tab.id);
+      updateMuteLabel(res?.muted ?? false);
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Enable / disable timer for this tab
+  // -------------------------------------------------------------------------
   async function queryTabEnable(tabId) {
     try {
       const res = await chrome.tabs.sendMessage(tabId, { type: "GET_LOCAL_ENABLED" });
       const override = res?.override ?? null;
       const effective = !!res?.effective;
-      const enabledForLabel = (override === null) ? false : !!override;
+      const enabledForLabel = override === null ? false : !!override;
       return { ok: true, enabledForLabel, override, effective };
     } catch {
       return { ok: false, enabledForLabel: false, override: null, effective: false };
     }
   }
+
   async function setTabEnable(tabId, enabled) {
     try {
       await chrome.tabs.sendMessage(tabId, { type: "SET_LOCAL_ENABLED", enabled: !!enabled });
@@ -101,79 +182,17 @@
     }
   }
 
-  async function updateMuteLabel(finalMuted) {
-    if (!els.muteLabel || !els.muteBtn) return;
-    els.muteLabel.textContent = finalMuted ? "Unmute" : "Mute";
-    els.muteBtn.setAttribute("aria-pressed", finalMuted ? "true" : "false");
+  function setEnableButtonUI(isEnabled) {
+    const btn = $("toggleSiteBtn");
+    const lbl = $("toggleSiteLabel");
+    if (!btn || !lbl) return;
+    lbl.textContent = isEnabled ? "Disable timer" : "Enable timer";
+    btn.setAttribute("aria-pressed", isEnabled ? "true" : "false");
   }
 
-  // Per-tab Hide-when-inactive helpers
-  async function loadHideInactiveFromTab(tabId) {
-  if (!els.hideInactive) return;
-  // Keep current UI state unless we get a definitive answer
-  const prev = els.hideInactive.checked;
-
-  try {
-    const res = await chrome.tabs.sendMessage(tabId, { type: "GET_LOCAL_HIDE_INACTIVE" });
-    if (!res) return;
-
-    const hasOverride = ("override" in res) && res.override !== null;
-    // Show override if set; otherwise show the effective (global) value
-    els.hideInactive.checked = hasOverride ? !!res.override : !!res.effective;
-  } catch {
-    // Fallback: try global (doesn't flicker to unchecked if storage read fails)
-    try {
-      const { settings = {} } = await chrome.storage.sync.get("settings");
-      if (typeof settings.hideWhenInactive === "boolean") {
-        els.hideInactive.checked = settings.hideWhenInactive;
-      } else {
-        // leave as previous visual state
-        els.hideInactive.checked = prev;
-      }
-    } catch {
-      els.hideInactive.checked = prev;
-    }
-  }
-}
-
-  async function setHideInactiveForTab(tabId, value /* boolean|null */) {
-    // value === true/false to set override; null to clear override (follow global)
-    try {
-      await chrome.tabs.sendMessage(tabId, { type: "SET_LOCAL_HIDE_INACTIVE", enabled: value });
-    } catch {
-      // ignore
-    }
-  }
-
-  // ---------- init ----------
-  const tab = await getActiveTab();
-  const host = getHost(tab?.url || "");
-  if (els.host) els.host.textContent = host.replace(/^www\./, "") || "";
-
-  // Default UI before we learn anything: show "Enable timer"
-  setEnableButtonUI(false);
-
-  // Initialize per-tab enable button
-  {
-    const q = await queryTabEnable(tab.id);
-    setEnableButtonUI(q.enabledForLabel);
-  }
-
-  // Initialize per-tab hide-when-inactive checkbox
-  await loadHideInactiveFromTab(tab.id);
-
-  // ---------- wire buttons ----------
-  if (els.muteBtn) {
-    els.muteBtn.addEventListener("click", async () => {
-      if (!tab?.id) return;
-      await tryContentScriptToggle(tab.id);
-      const res = await forcePageToggle(tab.id);
-      await updateMuteLabel(res?.muted ?? false);
-    });
-  }
-
-  if (els.toggleSiteBtn) {
-    els.toggleSiteBtn.addEventListener("click", async () => {
+  const toggleSiteBtn = $("toggleSiteBtn");
+  if (toggleSiteBtn) {
+    toggleSiteBtn.addEventListener("click", async () => {
       if (!tab?.id) return;
       const current = await queryTabEnable(tab.id);
       const next = !current.enabledForLabel;
@@ -182,113 +201,285 @@
     });
   }
 
-  // Per-tab Hide-when-inactive (NO global write)
-  if (els.hideInactive) {
-  els.hideInactive.addEventListener("change", async () => {
-    if (!tab?.id) return;
-
-    // Set per-tab override on the page
+  // -------------------------------------------------------------------------
+  // Hide-when-inactive (per tab)
+  // -------------------------------------------------------------------------
+  async function loadHideInactiveFromTab(tabId) {
+    const el = $("hideWhenInactive");
+    if (!el) return;
+    const prev = el.checked;
     try {
-      const resp = await chrome.tabs.sendMessage(tab.id, {
-        type: "SET_LOCAL_HIDE_INACTIVE",
-        enabled: !!els.hideInactive.checked   // true/false; use null to clear override
-      });
-      // Confirm and correct the UI using the page's own echo
-      if (resp && ("override" in resp)) {
-        els.hideInactive.checked = resp.override === null ? !!resp.effectiveHide : !!resp.override;
-      } else {
-        // As a fallback, re-query
+      const res = await chrome.tabs.sendMessage(tabId, { type: "GET_LOCAL_HIDE_INACTIVE" });
+      if (!res) return;
+      const hasOverride = "override" in res && res.override !== null;
+      el.checked = hasOverride ? !!res.override : !!res.effective;
+    } catch {
+      try {
+        const { settings = {} } = await chrome.storage.sync.get("settings");
+        el.checked = typeof settings.hideWhenInactive === "boolean" ? settings.hideWhenInactive : prev;
+      } catch {
+        el.checked = prev;
+      }
+    }
+  }
+
+  const hideInactiveEl = $("hideWhenInactive");
+  if (hideInactiveEl) {
+    hideInactiveEl.addEventListener("change", async () => {
+      if (!tab?.id) return;
+      try {
+        const resp = await chrome.tabs.sendMessage(tab.id, {
+          type: "SET_LOCAL_HIDE_INACTIVE",
+          enabled: !!hideInactiveEl.checked,
+        });
+        if (resp && "override" in resp) {
+          hideInactiveEl.checked = resp.override === null ? !!resp.effectiveHide : !!resp.override;
+        } else {
+          await loadHideInactiveFromTab(tab.id);
+        }
+        try { await chrome.tabs.sendMessage(tab.id, { type: "APPLY_SETTINGS" }); } catch {}
+      } catch {
         await loadHideInactiveFromTab(tab.id);
       }
-      // Nudge that tab to re-evaluate immediately
-      try { await chrome.tabs.sendMessage(tab.id, { type: "APPLY_SETTINGS" }); } catch {}
-    } catch {
-      // If the tab can't be reached, revert the UI to what the tab actually has
-      await loadHideInactiveFromTab(tab.id);
-    }
-  });
-}
-
-
-  // Site-level Finished toggle (unchanged)
-  if (els.finishedSite) {
-    els.finishedSite.addEventListener("change", async () => {
-      const { sites = {}, settings = {} } = await chrome.storage.sync.get(["sites", "settings"]);
-      const canon = host.toLowerCase().replace(/^www\./, "");
-      const entry = (sites[canon] || { enabled: settings.defaultEnabled ?? true, finishedEnabled: true });
-      await chrome.storage.sync.set({ sites: { ...sites, [canon]: { ...entry, finishedEnabled: !!els.finishedSite.checked } } });
-      try { await chrome.tabs.sendMessage(tab.id, { type: "APPLY_SETTINGS" }); } catch {}
     });
   }
 
-  if (els.openOptions) els.openOptions.addEventListener("click", () => chrome.runtime.openOptionsPage());
-  if (els.openShortcuts) els.openShortcuts.addEventListener("click", () => chrome.tabs.create({ url: "chrome://extensions/shortcuts" }));
-
-  // --- Video state display ---
-  function fmtSec(s) {
-    s = Math.max(0, Math.floor(s || 0));
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    const ss = s % 60;
-    if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
-    return `${m}:${String(ss).padStart(2, "0")}`;
+  // -------------------------------------------------------------------------
+  // Finished toggle (per site)
+  // -------------------------------------------------------------------------
+  async function loadFinishedForSite() {
+    const el = $("finishedEnabledThisSite");
+    if (!el || !canonHost) return;
+    try {
+      const { sites = {}, settings = {} } = await chrome.storage.sync.get(["sites", "settings"]);
+      const entry = sites[canonHost];
+      const val = entry?.finishedEnabled ?? (settings.finishedEnabled ?? true);
+      el.checked = !!val;
+    } catch {}
   }
 
+  const finishedSiteEl = $("finishedEnabledThisSite");
+  if (finishedSiteEl) {
+    finishedSiteEl.addEventListener("change", async () => {
+      try {
+        const { sites = {}, settings = {} } = await chrome.storage.sync.get(["sites", "settings"]);
+        const entry = sites[canonHost] || { enabled: settings.defaultEnabled ?? true, finishedEnabled: true };
+        await chrome.storage.sync.set({
+          sites: { ...sites, [canonHost]: { ...entry, finishedEnabled: !!finishedSiteEl.checked } },
+        });
+        try { await chrome.tabs.sendMessage(tab.id, { type: "APPLY_SETTINGS" }); } catch {}
+      } catch {}
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Overlay visibility
+  // -------------------------------------------------------------------------
+  async function loadOverlayState(tabId) {
+    // We'll try to read from content script state via GET_VIDEO_STATE
+    // The overlay checkbox just sends SET_OVERLAY_VISIBLE on change
+    // Initialize to unchecked; we'll update after first GET_VIDEO_STATE
+  }
+
+  const overlayEl = $("overlayVisible");
+  if (overlayEl) {
+    overlayEl.addEventListener("change", async () => {
+      if (!tab?.id) return;
+      try {
+        await chrome.tabs.sendMessage(tab.id, {
+          type: "SET_OVERLAY_VISIBLE",
+          visible: !!overlayEl.checked,
+        });
+        try { await chrome.tabs.sendMessage(tab.id, { type: "APPLY_SETTINGS" }); } catch {}
+      } catch {}
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Options / Shortcuts
+  // -------------------------------------------------------------------------
+  const openOptionsBtn = $("openOptions");
+  if (openOptionsBtn) {
+    openOptionsBtn.addEventListener("click", () => chrome.runtime.openOptionsPage());
+  }
+
+  const openShortcutsBtn = $("openShortcuts");
+  if (openShortcutsBtn) {
+    openShortcutsBtn.addEventListener("click", () =>
+      chrome.tabs.create({ url: "chrome://extensions/shortcuts" })
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Video state rendering
+  // -------------------------------------------------------------------------
   function renderVideoState(state) {
-    const icon    = document.getElementById("statusIcon");
-    const text    = document.getElementById("statusText");
-    const tv      = document.getElementById("timeValue");
-    const pw      = document.getElementById("progressWrap");
-    const fill    = document.getElementById("progressFill");
-    const elapsed = document.getElementById("timeElapsed");
-    const dur     = document.getElementById("timeDuration");
-    const badge   = document.getElementById("liveBadge");
+    const iconEl       = $("statusIcon");
+    const textEl       = $("statusText");
+    const rateBadgeEl  = $("rateBadge");
+    const chapterEl    = $("chapterTitle");
+    const tvEl         = $("timeValue");
+    const pwEl         = $("progressWrap");
+    const fillEl       = $("progressFill");
+    const elapsedEl    = $("timeElapsed");
+    const durEl        = $("timeDuration");
+    const badgeEl      = $("liveBadge");
+    const pickerCard   = $("videoPickerCard");
+    const videoListEl  = $("videoList");
 
-    if (!icon || !text) return;
+    if (!iconEl || !textEl) return;
 
+    // --- No media ---
     if (!state?.hasMedia) {
-      icon.textContent  = "📺";
-      text.textContent  = state?.enabled === false ? "Timer disabled for this site" : "No video detected";
-      tv.hidden = true; pw.hidden = true; badge.hidden = true;
+      iconEl.textContent = "📺";
+      textEl.textContent = state?.enabled === false
+        ? "Timer disabled for this site"
+        : "No video detected";
+      if (rateBadgeEl) rateBadgeEl.hidden = true;
+      if (chapterEl)   chapterEl.hidden   = true;
+      if (tvEl)        tvEl.hidden        = true;
+      if (pwEl)        pwEl.hidden        = true;
+      if (badgeEl)     badgeEl.hidden     = true;
+      if (pickerCard)  pickerCard.hidden  = true;
       return;
     }
 
-    if (state.isLive) {
-      badge.hidden = false;
-      icon.textContent = "🔴";
-      text.textContent = state.isPlaying ? "Live · Playing" : "Live · Paused";
-      if (state.liveElapsed != null) {
-        tv.hidden = false;
-        tv.textContent = fmtSec(state.liveElapsed) + " elapsed";
+    // --- Playback rate badge ---
+    if (rateBadgeEl) {
+      const rate = state.playbackRate ?? 1;
+      if (rate !== 1) {
+        rateBadgeEl.textContent = `${rate}×`;
+        rateBadgeEl.hidden = false;
       } else {
-        tv.hidden = true;
+        rateBadgeEl.hidden = true;
       }
-      pw.hidden = true;
-      return;
     }
 
-    badge.hidden = true;
-    icon.textContent = state.isPlaying ? "▶" : "⏸";
-    text.textContent = state.isPlaying ? "Playing" : "Paused";
+    // --- Chapter title ---
+    if (chapterEl) {
+      if (state.chapterTitle) {
+        chapterEl.textContent = state.chapterTitle;
+        chapterEl.hidden = false;
+      } else {
+        chapterEl.hidden = true;
+      }
+    }
 
-    if (state.timeLeft != null && state.duration != null) {
-      tv.hidden = false;
-      const vodMode = state.vodTimerMode ?? "countdown";
-      tv.textContent = vodMode === "elapsed"
-        ? fmtSec(state.currentTime) + " watched"
-        : fmtSec(state.timeLeft)    + " remaining";
-
-      pw.hidden = false;
-      const pct = state.percent ?? 0;
-      fill.style.width = pct + "%";
-      elapsed.textContent = fmtSec(state.currentTime);
-      dur.textContent     = fmtSec(state.duration);
+    // --- Live stream ---
+    if (state.isLive) {
+      if (badgeEl) badgeEl.hidden = false;
+      iconEl.textContent = "🔴";
+      textEl.textContent = state.isPlaying ? "Live · Playing" : "Live · Paused";
+      if (tvEl) {
+        if (state.liveElapsed != null) {
+          tvEl.textContent = fmtSec(state.liveElapsed) + " elapsed";
+          tvEl.hidden = false;
+        } else {
+          tvEl.hidden = true;
+        }
+      }
+      if (pwEl) pwEl.hidden = true;
     } else {
-      tv.hidden = true; pw.hidden = true;
+      // --- VOD ---
+      if (badgeEl) badgeEl.hidden = true;
+      iconEl.textContent = state.isPlaying ? "▶" : "⏸";
+      textEl.textContent = state.isPlaying ? "Playing" : "Paused";
+
+      if (tvEl) {
+        if (state.timeLeft != null && state.duration != null) {
+          const vodMode = state.vodTimerMode ?? "countdown";
+          tvEl.textContent = vodMode === "elapsed"
+            ? fmtSec(state.currentTime) + " watched"
+            : fmtSec(state.timeLeft)    + " remaining";
+          tvEl.hidden = false;
+        } else {
+          tvEl.hidden = true;
+        }
+      }
+
+      if (pwEl && fillEl && elapsedEl && durEl) {
+        if (state.duration != null) {
+          const pct = state.percent ?? 0;
+          fillEl.style.width = pct + "%";
+          elapsedEl.textContent = fmtSec(state.currentTime);
+          durEl.textContent     = fmtSec(state.duration);
+          pwEl.hidden = false;
+        } else {
+          pwEl.hidden = true;
+        }
+      }
+    }
+
+    // --- Video picker ---
+    if (pickerCard && videoListEl) {
+      const vl = state.videoList ?? [];
+      if (vl.length > 1) {
+        pickerCard.hidden = false;
+        renderVideoList(vl, state.selectedVideoIndex ?? 0, tab.id);
+      } else {
+        pickerCard.hidden = true;
+      }
     }
   }
 
+  function renderVideoList(videoList, selectedIndex, tabId) {
+    const el = $("videoList");
+    if (!el) return;
+
+    el.innerHTML = "";
+    videoList.forEach((v) => {
+      const item = document.createElement("div");
+      item.className = "video-item" + (v.index === selectedIndex ? " selected" : "");
+      item.setAttribute("role", "button");
+      item.setAttribute("tabindex", "0");
+
+      const idxSpan = document.createElement("span");
+      idxSpan.className = "vi-index";
+      idxSpan.textContent = v.index + 1;
+
+      const infoSpan = document.createElement("span");
+      infoSpan.style.flex = "1";
+      infoSpan.style.minWidth = "0";
+
+      if (v.width && v.height) {
+        const sizeSpan = document.createElement("span");
+        sizeSpan.className = "vi-size";
+        sizeSpan.textContent = `${v.width}×${v.height}`;
+        infoSpan.appendChild(sizeSpan);
+      }
+
+      const durSpan = document.createElement("span");
+      durSpan.className = "vi-dur";
+      durSpan.textContent = v.duration ? fmtSec(v.duration) : "—";
+
+      item.appendChild(idxSpan);
+      item.appendChild(infoSpan);
+      item.appendChild(durSpan);
+
+      const select = async () => {
+        try {
+          await chrome.tabs.sendMessage(tabId, { type: "SELECT_VIDEO", index: v.index });
+          // Re-render selection state immediately
+          el.querySelectorAll(".video-item").forEach((child, i) => {
+            child.classList.toggle("selected", i === v.index);
+          });
+        } catch {}
+      };
+
+      item.addEventListener("click", select);
+      item.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(); }
+      });
+
+      el.appendChild(item);
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Video state polling (Now Playing tab)
+  // -------------------------------------------------------------------------
   let vsTimer = null;
+
   async function pollVideoState() {
     try {
       const state = await chrome.tabs.sendMessage(tab.id, { type: "GET_VIDEO_STATE" });
@@ -297,34 +488,180 @@
       renderVideoState(null);
     }
   }
+
   pollVideoState();
   vsTimer = setInterval(pollVideoState, 1000);
   window.addEventListener("unload", () => clearInterval(vsTimer));
 
-  // Initial mute label
-  try {
-    const [{ result }] = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: () => {
-        const media = Array.from(document.querySelectorAll("video,audio"));
-        const anyAudible = media.some(v => !v.muted && v.volume > 0);
-        return { muted: !anyAudible };
-      },
-    });
-    await updateMuteLabel(result?.muted ?? false);
-  } catch {}
+  // -------------------------------------------------------------------------
+  // Stats tab
+  // -------------------------------------------------------------------------
+  async function loadStats() {
+    await Promise.all([loadTodayStats(), loadWeekStats()]);
+  }
 
-  setTimeout(async () => {
+  async function loadTodayStats() {
     try {
-      const [{ result }] = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => {
-          const media = Array.from(document.querySelectorAll("video,audio"));
-          const anyAudible = media.some(v => !v.muted && v.volume > 0);
-          return { muted: !anyAudible };
-        },
+      const [todayData, usageData] = await Promise.all([
+        chrome.runtime.sendMessage({ type: "GET_STATS", period: "today" }).catch(() => ({})),
+        chrome.runtime.sendMessage({ type: "GET_DAILY_USAGE" }).catch(() => ({ totalSecs: 0, limitSecs: 0 })),
+      ]);
+
+      const totalSecs = todayData?._total ?? 0;
+
+      // Total display
+      const statTotalEl = $("statTotal");
+      if (statTotalEl) statTotalEl.textContent = fmtWatch(totalSecs);
+
+      // Daily limit bar
+      const limitWrap = $("limitBarWrap");
+      const limitFill = $("limitBarFill");
+      const limitLbl  = $("limitLabel");
+      const limitSecs = usageData?.limitSecs ?? 0;
+
+      if (limitWrap && limitFill && limitLbl) {
+        if (limitSecs > 0) {
+          const pct = Math.min(100, (totalSecs / limitSecs) * 100);
+          limitFill.style.width = pct + "%";
+          limitFill.classList.toggle("over", totalSecs >= limitSecs);
+          limitLbl.textContent = `${fmtWatch(totalSecs)} of ${fmtWatch(limitSecs)}`;
+          limitWrap.hidden = false;
+        } else {
+          limitWrap.hidden = true;
+        }
+      }
+
+      // Per-site breakdown
+      const breakdownEl = $("siteBreakdown");
+      if (breakdownEl) {
+        breakdownEl.innerHTML = "";
+        const sites = Object.entries(todayData || {})
+          .filter(([k]) => k !== "_total")
+          .sort((a, b) => b[1] - a[1]);
+
+        const maxSecs = sites.length > 0 ? sites[0][1] : 1;
+
+        sites.forEach(([site, secs]) => {
+          const row = document.createElement("div");
+          row.className = "site-row-stat";
+
+          const nameEl = document.createElement("span");
+          nameEl.className = "site-name";
+          nameEl.textContent = site;
+          nameEl.title = site;
+
+          const barWrap = document.createElement("div");
+          barWrap.className = "site-bar-wrap";
+
+          const bar = document.createElement("div");
+          bar.className = "site-bar";
+          bar.style.width = Math.max(2, (secs / maxSecs) * 100) + "%";
+          barWrap.appendChild(bar);
+
+          const timeEl = document.createElement("span");
+          timeEl.className = "site-time";
+          timeEl.textContent = fmtWatch(secs);
+
+          row.appendChild(nameEl);
+          row.appendChild(barWrap);
+          row.appendChild(timeEl);
+          breakdownEl.appendChild(row);
+        });
+
+        if (sites.length === 0) {
+          const empty = document.createElement("div");
+          empty.style.cssText = "font-size:12px;color:var(--fg-dim);padding:4px 0";
+          empty.textContent = "No watch time recorded today.";
+          breakdownEl.appendChild(empty);
+        }
+      }
+    } catch (err) {
+      console.error("[popup] loadTodayStats error", err);
+    }
+  }
+
+  async function loadWeekStats() {
+    try {
+      const weekData = await chrome.runtime.sendMessage({ type: "GET_STATS", period: "week" }).catch(() => ({}));
+      const chartEl = $("weekChart");
+      if (!chartEl) return;
+      chartEl.innerHTML = "";
+
+      // Build last 7 days (Mon first if the week aligns, otherwise just last 7 in order)
+      const days = [];
+      const now = new Date();
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const iso = d.toISOString().slice(0, 10); // YYYY-MM-DD
+        const dayLabel = d.toLocaleDateString(undefined, { weekday: "short" });
+        const total = weekData?.[iso]?._total ?? 0;
+        days.push({ iso, dayLabel, total });
+      }
+
+      const maxSecs = Math.max(1, ...days.map((d) => d.total));
+
+      days.forEach((d) => {
+        const row = document.createElement("div");
+        row.className = "week-row";
+
+        const dayLbl = document.createElement("span");
+        dayLbl.className = "week-day";
+        dayLbl.textContent = d.dayLabel;
+
+        const barWrap = document.createElement("div");
+        barWrap.className = "week-bar-wrap";
+
+        const bar = document.createElement("div");
+        bar.className = "week-bar";
+        bar.style.width = d.total > 0 ? Math.max(2, (d.total / maxSecs) * 100) + "%" : "0%";
+        barWrap.appendChild(bar);
+
+        const timeLbl = document.createElement("span");
+        timeLbl.className = "week-time";
+        timeLbl.textContent = d.total > 0 ? fmtWatch(d.total) : "—";
+
+        row.appendChild(dayLbl);
+        row.appendChild(barWrap);
+        row.appendChild(timeLbl);
+        chartEl.appendChild(row);
       });
-      await updateMuteLabel(result?.muted ?? false);
-    } catch {}
-  }, 700);
+    } catch (err) {
+      console.error("[popup] loadWeekStats error", err);
+    }
+  }
+
+  // Clear stats button
+  const clearStatsBtn = $("clearStats");
+  if (clearStatsBtn) {
+    clearStatsBtn.addEventListener("click", async () => {
+      if (!confirm("Clear all watch time statistics? This cannot be undone.")) return;
+      try {
+        await chrome.runtime.sendMessage({ type: "CLEAR_STATS" });
+        await loadStats();
+      } catch {}
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Init: run all initialization in parallel
+  // -------------------------------------------------------------------------
+  await Promise.all([
+    // Enable button
+    (async () => {
+      setEnableButtonUI(false);
+      const q = await queryTabEnable(tab.id);
+      setEnableButtonUI(q.enabledForLabel);
+    })(),
+    // Hide-when-inactive
+    loadHideInactiveFromTab(tab.id),
+    // Finished-for-site
+    loadFinishedForSite(),
+    // Mute label
+    initMuteLabel(tab.id),
+  ]);
+
+  // Refresh mute label slightly after load (media may not be settled immediately)
+  setTimeout(() => initMuteLabel(tab.id), 700);
+
 })();
