@@ -27,7 +27,8 @@ label.row-inline { margin: 0; }
 label.row-inline.forever { gap: 0.4rem; }
 
 input[type="text"],
-input[type="number"] {
+input[type="number"],
+select {
   width: 260px;
   padding: 0.45rem 0.6rem;
   border-radius: 8px;
@@ -65,13 +66,13 @@ button:hover { background: #ebebeb; }
 button:active { background: #e2e2e2; }
 button:disabled { opacity: 0.6; cursor: default; }
 
-#status { margin-top: 0.6rem; font-size: 0.92rem; opacity: 0.9; }
+#status, #statusPlayback, #statusAlerts { margin-top: 0.6rem; font-size: 0.92rem; opacity: 0.9; }
 
 @media (prefers-color-scheme: dark) {
   body { background: #111111; color: #eeeeee; }
   section { border-color: #333; background: #141414; }
   table, th, td { border-color: #222; }
-  input[type="text"], input[type="number"] {
+  input[type="text"], input[type="number"], select {
     background: #0f0f0f; border-color: #333; color: #eeeeee;
   }
   button {

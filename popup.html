@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Video Tab Timer</title>
+  <title>Tab Video Timer</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="color-scheme" content="light dark" />
   <link rel="stylesheet" href="popup.css" />
@@ -10,64 +10,118 @@
 <body>
   <main class="wrap">
     <header class="row header">
-      <h1 class="title">Video Timer</h1>
+      <h1 class="title">Tab Video Timer</h1>
       <div class="hostline">
         <span id="liveBadge" class="badge" hidden>LIVE</span>
         <span id="host" class="host">—</span>
       </div>
     </header>
 
-    <section class="card status-card">
-      <div class="status-top">
-        <span id="statusIcon" class="status-icon" aria-hidden="true">📺</span>
-        <div class="status-info">
-          <div id="statusText" class="status-text">No video detected</div>
-          <div id="timeValue" class="time-value" hidden>—</div>
-        </div>
-      </div>
-      <div id="progressWrap" class="progress-wrap" hidden>
-        <div class="progress-track">
-          <div id="progressFill" class="progress-fill" style="width:0%"></div>
-        </div>
-        <div class="progress-labels">
-          <span id="timeElapsed" class="mono">0:00</span>
-          <span id="timeDuration" class="mono">0:00</span>
-        </div>
-      </div>
-    </section>
+    <nav class="tabs" role="tablist">
+      <button class="tab-btn active" role="tab" aria-selected="true" data-panel="now-playing">Now Playing</button>
+      <button class="tab-btn" role="tab" aria-selected="false" data-panel="stats">Stats</button>
+    </nav>
 
-    <section class="card">
-      <div class="btn-row">
-        <button id="mute" type="button" class="btn" aria-pressed="false">
-          <span class="btn-icon" aria-hidden="true">🔊</span>
-          <span id="muteLabel">Mute</span>
-        </button>
-        <button id="toggleSiteBtn" type="button" class="btn secondary">
-          <span class="btn-icon" aria-hidden="true">⏱</span>
-          <span id="toggleSiteLabel">Enable timer</span>
-        </button>
-      </div>
-    </section>
+    <!-- NOW PLAYING PANEL -->
+    <div id="panel-now-playing" class="tab-panel active" role="tabpanel">
 
-    <section class="card prefs">
-      <h2 class="card-title">Preferences</h2>
-      <div class="pref-row">
-        <input id="hideWhenInactive" type="checkbox" />
-        <label for="hideWhenInactive">Hide timer when tab is inactive</label>
-      </div>
-      <div class="pref-row">
-        <input id="finishedEnabledThisSite" type="checkbox" checked />
-        <label for="finishedEnabledThisSite">Show "Finished" when video ends</label>
-      </div>
-      <div class="links">
-        <button id="openOptions" type="button" class="link-btn">Options…</button>
-        <button id="openShortcuts" type="button" class="link-btn">Shortcuts…</button>
-      </div>
-    </section>
+      <!-- Status card -->
+      <section class="card status-card">
+        <div class="status-top">
+          <span id="statusIcon" class="status-icon" aria-hidden="true">📺</span>
+          <div class="status-info">
+            <div class="status-meta">
+              <span id="statusText" class="status-text">No video detected</span>
+              <span id="rateBadge" class="rate-badge" hidden></span>
+            </div>
+            <div id="chapterTitle" class="chapter-title" hidden></div>
+            <div id="timeValue" class="time-value" hidden>—</div>
+          </div>
+        </div>
+        <div id="progressWrap" class="progress-wrap" hidden>
+          <div class="progress-track">
+            <div id="progressFill" class="progress-fill" style="width:0%"></div>
+          </div>
+          <div class="progress-labels">
+            <span id="timeElapsed" class="mono">0:00</span>
+            <span id="timeDuration" class="mono">0:00</span>
+          </div>
+        </div>
+      </section>
 
-    <footer class="foot">
-      <small>Tip: Set shortcuts at <code>chrome://extensions/shortcuts</code></small>
-    </footer>
+      <!-- Video picker card -->
+      <section id="videoPickerCard" class="card" hidden>
+        <h2 class="card-title">Select Video</h2>
+        <div id="videoList" class="video-list"></div>
+      </section>
+
+      <!-- Controls card -->
+      <section class="card">
+        <div class="btn-row">
+          <button id="mute" type="button" class="btn" aria-pressed="false">
+            <span class="btn-icon" aria-hidden="true">🔊</span>
+            <span id="muteLabel">Mute</span>
+          </button>
+          <button id="toggleSiteBtn" type="button" class="btn secondary" aria-pressed="false">
+            <span class="btn-icon" aria-hidden="true">⏱</span>
+            <span id="toggleSiteLabel">Enable timer</span>
+          </button>
+        </div>
+        <div class="pref-row">
+          <input id="hideWhenInactive" type="checkbox" />
+          <label for="hideWhenInactive">Hide timer when tab inactive</label>
+        </div>
+        <div class="pref-row">
+          <input id="finishedEnabledThisSite" type="checkbox" checked />
+          <label for="finishedEnabledThisSite">Show "Finished" on this site</label>
+        </div>
+        <div class="pref-row">
+          <input id="overlayVisible" type="checkbox" />
+          <label for="overlayVisible">Show page overlay</label>
+        </div>
+      </section>
+
+      <footer class="foot">
+        <div class="links">
+          <button id="openOptions" type="button" class="link-btn">Options…</button>
+          <button id="openShortcuts" type="button" class="link-btn">Shortcuts…</button>
+        </div>
+      </footer>
+
+    </div><!-- /panel-now-playing -->
+
+    <!-- STATS PANEL -->
+    <div id="panel-stats" class="tab-panel" role="tabpanel">
+
+      <!-- Today card -->
+      <section class="card">
+        <h2 class="card-title">Today</h2>
+        <div id="statTotal" class="stat-total">—</div>
+
+        <!-- Daily limit bar -->
+        <div id="limitBarWrap" class="limit-bar-wrap" hidden>
+          <div class="limit-bar-track">
+            <div id="limitBarFill" class="limit-bar-fill" style="width:0%"></div>
+          </div>
+          <div id="limitLabel" class="limit-label"></div>
+        </div>
+
+        <!-- Per-site breakdown -->
+        <div id="siteBreakdown" class="site-breakdown"></div>
+      </section>
+
+      <!-- This Week card -->
+      <section class="card">
+        <h2 class="card-title">This Week</h2>
+        <div id="weekChart" class="week-chart"></div>
+      </section>
+
+      <footer class="foot stats-foot">
+        <button id="clearStats" type="button" class="link-btn danger">Clear all stats</button>
+      </footer>
+
+    </div><!-- /panel-stats -->
+
   </main>
   <script src="popup.js"></script>
 </body>
