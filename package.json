@@ -1,0 +1,19 @@
+{
+  "name": "tab-video-timer",
+  "version": "1.0.0",
+  "description": "Adds a mini timer to your **tab title**: - **VOD:** time **remaining** or **elapsed** (Playing / Paused), speed-adjusted for 1.5×, 2× etc. - **LIVE (YouTube/Twitch):** time **elapsed** (count-up)",
+  "main": "background.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://local_proxy@127.0.0.1:44425/git/buzz-craft/tab-video-timer"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "puppeteer": "^25.1.0"
+  }
+}

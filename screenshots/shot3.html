@@ -1,0 +1,167 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1280px;height:800px;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:80px}
+
+.left{display:flex;flex-direction:column;align-items:center}
+.toolbar{width:380px;background:#111827;border-radius:10px 10px 0 0;padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #1f2937}
+.dots{display:flex;gap:5px}
+.dot{width:11px;height:11px;border-radius:50%}
+.dot.r{background:#ef4444}.dot.y{background:#f59e0b}.dot.g{background:#22c55e}
+.ext-icon{width:20px;height:20px;background:#2563eb;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;margin-left:auto;box-shadow:0 0 0 2px #3b82f6,0 0 12px rgba(59,130,246,.5)}
+
+.popup{width:360px;background:#0b0f15;border-radius:0 0 10px 10px;border:1px solid #1f2937;border-top:none;padding:12px;box-shadow:0 24px 60px rgba(0,0,0,.7)}
+.popup-header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #1f2937;padding-bottom:8px;margin-bottom:0}
+.popup-title{font-size:14px;font-weight:700;color:#e5e7eb}
+
+.popup-tabs{display:flex;border-bottom:1px solid #1f2937;margin-bottom:10px}
+.ptab{flex:1;background:transparent;border:none;border-bottom:2px solid transparent;color:#9ca3af;font-size:12px;font-weight:600;padding:8px 4px;text-align:center}
+.ptab.active{color:#60a5fa;border-bottom-color:#60a5fa}
+
+.card{border:1px solid #1f2937;border-radius:10px;padding:10px;margin-bottom:8px}
+.card-title{font-size:11px;color:#9ca3af;font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin-bottom:8px}
+
+.stat-total{font-size:30px;font-weight:800;color:#e5e7eb;letter-spacing:-1px;margin-bottom:8px;font-variant-numeric:tabular-nums}
+
+/* limit bar */
+.limit-wrap{margin-bottom:10px}
+.limit-track{height:6px;background:#1f2937;border-radius:999px;overflow:hidden;margin-bottom:4px}
+.limit-fill{height:100%;background:#60a5fa;border-radius:999px;width:73%}
+.limit-label{font-size:11px;color:#9ca3af}
+
+/* site breakdown */
+.breakdown{display:flex;flex-direction:column;gap:5px;margin-top:4px}
+.site-row{display:flex;align-items:center;gap:6px}
+.site-name{font-size:12px;color:#e5e7eb;min-width:90px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
+.site-bar-wrap{flex:1;height:5px;background:#1f2937;border-radius:999px;overflow:hidden}
+.site-bar{height:100%;background:#60a5fa;border-radius:999px}
+.site-time{font-size:11px;color:#9ca3af;font-variant-numeric:tabular-nums;min-width:36px;text-align:right;flex-shrink:0}
+
+/* week chart */
+.week{display:flex;flex-direction:column;gap:5px}
+.week-row{display:flex;align-items:center;gap:6px}
+.week-day{font-size:11px;color:#9ca3af;font-weight:600;min-width:28px;flex-shrink:0}
+.week-bar-wrap{flex:1;height:7px;background:#1f2937;border-radius:999px;overflow:hidden}
+.week-bar{height:100%;background:#60a5fa;border-radius:999px}
+.week-bar.today{background:#3b82f6}
+.week-time{font-size:11px;color:#9ca3af;font-variant-numeric:tabular-nums;min-width:36px;text-align:right;flex-shrink:0}
+
+.stats-foot{display:flex;justify-content:flex-end;border-top:1px solid #1f2937;margin-top:8px;padding-top:8px}
+.link-btn{background:transparent;border:0;color:#f87171;font-size:12px;cursor:pointer}
+
+/* right side */
+.right{max-width:420px}
+.right h2{font-size:32px;font-weight:800;color:#f1f5f9;letter-spacing:-.5px;margin-bottom:8px;line-height:1.2}
+.right p{font-size:15px;color:#94a3b8;margin-bottom:24px;line-height:1.5}
+.feature-list{display:flex;flex-direction:column;gap:14px}
+.feat{display:flex;align-items:flex-start;gap:12px}
+.feat-icon{font-size:22px;flex-shrink:0;margin-top:2px}
+.feat-title{font-size:14px;font-weight:700;color:#e2e8f0;margin-bottom:2px}
+.feat-desc{font-size:12px;color:#94a3b8;line-height:1.4}
+</style>
+</head>
+<body>
+
+<div class="left">
+  <div class="toolbar">
+    <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+    <div class="ext-icon">⏱</div>
+  </div>
+  <div class="popup">
+    <div class="popup-header">
+      <span class="popup-title">Tab Video Timer</span>
+    </div>
+    <div class="popup-tabs">
+      <div class="ptab">Now Playing</div>
+      <div class="ptab active">Stats</div>
+    </div>
+
+    <!-- Today card -->
+    <div class="card">
+      <div class="card-title">Today</div>
+      <div class="stat-total">2h 47m</div>
+
+      <div class="limit-wrap">
+        <div class="limit-track"><div class="limit-fill"></div></div>
+        <div class="limit-label">73% of 3h 45m daily limit</div>
+      </div>
+
+      <div class="breakdown">
+        <div class="site-row">
+          <div class="site-name">youtube.com</div>
+          <div class="site-bar-wrap"><div class="site-bar" style="width:80%"></div></div>
+          <div class="site-time">2h 13m</div>
+        </div>
+        <div class="site-row">
+          <div class="site-name">netflix.com</div>
+          <div class="site-bar-wrap"><div class="site-bar" style="width:24%"></div></div>
+          <div class="site-time">40m</div>
+        </div>
+        <div class="site-row">
+          <div class="site-name">twitch.tv</div>
+          <div class="site-bar-wrap"><div class="site-bar" style="width:9%"></div></div>
+          <div class="site-time">14m</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Week card -->
+    <div class="card">
+      <div class="card-title">This Week</div>
+      <div class="week">
+        <div class="week-row"><div class="week-day">Mon</div><div class="week-bar-wrap"><div class="week-bar" style="width:55%"></div></div><div class="week-time">1h 32m</div></div>
+        <div class="week-row"><div class="week-day">Tue</div><div class="week-bar-wrap"><div class="week-bar" style="width:30%"></div></div><div class="week-time">50m</div></div>
+        <div class="week-row"><div class="week-day">Wed</div><div class="week-bar-wrap"><div class="week-bar" style="width:72%"></div></div><div class="week-time">2h 01m</div></div>
+        <div class="week-row"><div class="week-day">Thu</div><div class="week-bar-wrap"><div class="week-bar" style="width:40%"></div></div><div class="week-time">1h 07m</div></div>
+        <div class="week-row"><div class="week-day">Fri</div><div class="week-bar-wrap"><div class="week-bar" style="width:18%"></div></div><div class="week-time">30m</div></div>
+        <div class="week-row"><div class="week-day">Sat</div><div class="week-bar-wrap"><div class="week-bar" style="width:90%"></div></div><div class="week-time">2h 31m</div></div>
+        <div class="week-row"><div class="week-day">Today</div><div class="week-bar-wrap"><div class="week-bar today" style="width:100%"></div></div><div class="week-time">2h 47m</div></div>
+      </div>
+    </div>
+
+    <div class="stats-foot">
+      <button class="link-btn">Clear all stats</button>
+    </div>
+  </div>
+</div>
+
+<div class="right">
+  <h2>Know exactly how much you've watched</h2>
+  <p>Watch-time stats stored locally in your browser — no accounts, no servers.</p>
+  <div class="feature-list">
+    <div class="feat">
+      <div class="feat-icon">📊</div>
+      <div class="feat-body">
+        <div class="feat-title">Daily total & per-site breakdown</div>
+        <div class="feat-desc">See today's watch time split by site with a proportional bar chart</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">📅</div>
+      <div class="feat-body">
+        <div class="feat-title">7-day chart</div>
+        <div class="feat-desc">Spot patterns at a glance with a week-by-week bar chart, up to 30 days stored</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">⏰</div>
+      <div class="feat-body">
+        <div class="feat-title">Daily limit bar</div>
+        <div class="feat-desc">Set a daily threshold in Options and see a progress bar warning when you're close</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🔒</div>
+      <div class="feat-body">
+        <div class="feat-title">100% private</div>
+        <div class="feat-desc">All data stays on your device in chrome.storage.local — never sent anywhere</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

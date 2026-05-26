@@ -1,0 +1,127 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1280px;height:800px;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px}
+
+/* headline */
+.headline{text-align:center}
+.headline h1{font-size:38px;font-weight:800;color:#f1f5f9;letter-spacing:-1px;margin-bottom:8px}
+.headline p{font-size:17px;color:#94a3b8}
+
+/* browser chrome */
+.browser{width:980px;background:#1e2532;border-radius:14px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.7)}
+.browser-bar{background:#111827;padding:10px 16px;display:flex;align-items:center;gap:12px}
+.dots{display:flex;gap:6px}
+.dot{width:13px;height:13px;border-radius:50%}
+.dot.r{background:#ef4444}
+.dot.y{background:#f59e0b}
+.dot.g{background:#22c55e}
+.addr{flex:1;background:#0b0f15;border-radius:6px;padding:5px 12px;font-size:12px;color:#6b7280;margin:0 12px}
+
+/* tabs */
+.tabs-bar{background:#0b0f15;display:flex;align-items:flex-end;padding:0 8px;gap:2px;border-bottom:1px solid #1f2937}
+.tab{padding:8px 14px 8px;font-size:12px;border-radius:8px 8px 0 0;display:flex;align-items:center;gap:7px;white-space:nowrap;max-width:220px;cursor:default}
+.tab.active{background:#1e2532;color:#f1f5f9;border:1px solid #1f2937;border-bottom:1px solid #1e2532;margin-bottom:-1px}
+.tab.inactive{background:transparent;color:#6b7280}
+.tab-icon{font-size:13px}
+.tab-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.tab-close{color:#6b7280;margin-left:auto;font-size:14px;padding-left:6px;flex-shrink:0}
+
+/* content */
+.page-content{height:390px;background:#111827;display:flex;align-items:center;justify-content:center;position:relative}
+.video-mock{width:640px;height:340px;background:#000;border-radius:4px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.video-mock img{width:100%;height:100%;object-fit:cover;opacity:.7}
+.video-bg{width:100%;height:100%;background:linear-gradient(180deg,#0a0a1a 0%,#1a0a2e 50%,#0a0a1a 100%);position:absolute}
+.play-overlay{position:absolute;display:flex;flex-direction:column;align-items:center;gap:8px}
+.play-icon{font-size:48px;opacity:.9}
+.video-progress{position:absolute;bottom:0;left:0;right:0;padding:8px 12px;background:linear-gradient(transparent,rgba(0,0,0,.8))}
+.vp-bar{height:4px;background:rgba(255,255,255,.3);border-radius:2px;margin-bottom:6px}
+.vp-fill{height:100%;background:#ef4444;border-radius:2px;width:42%}
+.vp-labels{display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,.7)}
+
+/* callout arrows */
+.callouts{display:flex;gap:24px;justify-content:center}
+.callout{background:rgba(37,99,235,.15);border:1px solid rgba(37,99,235,.4);border-radius:10px;padding:12px 18px;text-align:center;max-width:220px}
+.callout-icon{font-size:20px;margin-bottom:4px}
+.callout-title{font-size:13px;font-weight:700;color:#60a5fa;margin-bottom:2px}
+.callout-desc{font-size:11px;color:#94a3b8;line-height:1.4}
+</style>
+</head>
+<body>
+
+<div class="headline">
+  <h1>Your video info — right in the tab title</h1>
+  <p>No need to switch tabs to check how much time is left</p>
+</div>
+
+<div class="browser">
+  <div class="browser-bar">
+    <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+    <div class="addr">youtube.com/watch?v=dQw4w9WgXcQ</div>
+  </div>
+  <div class="tabs-bar">
+    <div class="tab active">
+      <span class="tab-icon">⏳</span>
+      <span class="tab-label">⏳ 14:32 • Complete Python Course</span>
+      <span class="tab-close">×</span>
+    </div>
+    <div class="tab inactive">
+      <span class="tab-icon">🔴</span>
+      <span class="tab-label">🔴 1:23:45 • LIVE Stream</span>
+      <span class="tab-close">×</span>
+    </div>
+    <div class="tab inactive">
+      <span class="tab-label">⏸ 45:10 • Documentary</span>
+      <span class="tab-close">×</span>
+    </div>
+    <div class="tab inactive">
+      <span class="tab-label">⏳ 8:02 @1.5× • Tutorial</span>
+      <span class="tab-close">×</span>
+    </div>
+    <div class="tab inactive" style="color:#4b5563">
+      <span class="tab-label">+ New Tab</span>
+    </div>
+  </div>
+  <div class="page-content">
+    <div class="video-mock">
+      <div class="video-bg"></div>
+      <div class="play-overlay">
+        <div style="font-size:56px">▶</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.6)">Complete Python Course — 3h 45m</div>
+      </div>
+      <div class="video-progress">
+        <div class="vp-bar"><div class="vp-fill"></div></div>
+        <div class="vp-labels"><span>1:30:28</span><span>3:45:00</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="callouts">
+  <div class="callout">
+    <div class="callout-icon">⏳</div>
+    <div class="callout-title">VOD Countdown</div>
+    <div class="callout-desc">Time remaining updates every second — even when the tab is in the background</div>
+  </div>
+  <div class="callout">
+    <div class="callout-icon">🔴</div>
+    <div class="callout-title">LIVE Count-up</div>
+    <div class="callout-desc">Elapsed time for YouTube & Twitch live streams, with DVR quirk guards</div>
+  </div>
+  <div class="callout">
+    <div class="callout-icon">⏩</div>
+    <div class="callout-title">Speed-aware</div>
+    <div class="callout-desc">At 1.5× or 2× the countdown shows real-world time remaining</div>
+  </div>
+  <div class="callout">
+    <div class="callout-icon">⏸</div>
+    <div class="callout-title">Paused State</div>
+    <div class="callout-desc">Title updates instantly when you pause or resume</div>
+  </div>
+</div>
+
+</body>
+</html>
