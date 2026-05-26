@@ -2,6 +2,37 @@
 All notable changes to this project will be documented in this file.
 Format inspired by Keep a Changelog. Versioning: SemVer.
 
+## 2.0.1 — 2026-05-26
+### Changed
+- **Popup:** removed hostname display from header for a cleaner look.
+- **Popup footer:** Options and Shortcuts buttons centered with equal spacing; ellipsis removed from labels.
+- **Options:** removed Streaming Sites quick-enable grid; default enable behaviour is controlled by the "Enable by default on new sites" checkbox in Display settings.
+
+### Notes
+- No new permissions. No analytics.
+
+## 2.0.0 — 2026-05-26
+### Added
+- **Speed-aware countdown:** VOD time remaining adjusts in real-time for 1.5×, 2× etc. playback rates. Tab title shows `@1.5×` indicator when rate ≠ 1.
+- **YouTube chapter titles:** current chapter name prepended to the tab title while a chapter is active.
+- **Multi-video picker:** popup lists all videos on the page; click to pin which one the timer tracks.
+- **Page overlay:** draggable floating timer that lives on top of any page. Toggle from the popup or Options. Position (bottom-right/left, top-right/left) configurable.
+- **Watch-time tracking:** records seconds watched per site per day (up to 30 days, stored locally). Flush every 30 s and on page unload.
+- **Stats tab in popup:** today's total watch time, optional daily limit progress bar, per-site breakdown, and a 7-day bar chart.
+- **Daily limit:** set a minute threshold in Options → Watch Time & Alerts; limit bar appears in the popup when exceeded.
+- **Break reminder:** browser notification after N continuous minutes of watching (0 = disabled).
+- **Video-ended notification:** browser notification when a tracked video finishes (opt-in).
+- **Popup redesign:** two-tab layout (Now Playing / Stats), rate badge, chapter title line, video picker card.
+- **Options — Playback Display section:** speed-aware countdown toggle, show-chapters toggle, overlay position selector, overlay default-on toggle.
+- **Options — Watch Time & Alerts section:** track-watch-time toggle, daily limit, break reminder, end-notification toggle.
+
+### Changed
+- `manifest.json` version → 2.0.0; added `notifications` permission.
+- `background.js` rewritten: watch-time storage, stats queries, notification dispatch, retained badge and mute helpers.
+
+### Notes
+- No new host permissions. No analytics.
+
 ## 1.1.3 — 2025-10-23
 ### Fixed
 - **Hide-when-inactive (LIVE streams):** titles no longer freeze when switching tabs/windows. Implemented an **immediate, strong hide-guard** that:
