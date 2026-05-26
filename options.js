@@ -48,7 +48,7 @@
     seedCurrentHostFromActiveTab();
     renderForm();
     renderSitesTable();
-    renderStreamingSites();
+
     wireEvents();
     syncHoldHint();
   }
@@ -345,58 +345,6 @@
       await chrome.runtime.sendMessage({ type: 'CLEAR_STATS' });
     } catch { /* background may not be listening yet */ }
     showStatus("Watch history cleared", "statusAlerts");
-  }
-  // ---------- Streaming sites quick-enable ----------
-  const STREAMING_SITES = [
-    { host: 'youtube.com',       label: 'YouTube',     emoji: '📺' },
-    { host: 'twitch.tv',         label: 'Twitch',      emoji: '🎮' },
-    { host: 'netflix.com',       label: 'Netflix',     emoji: '🎬' },
-    { host: 'disneyplus.com',    label: 'Disney+',     emoji: '✨' },
-    { host: 'primevideo.com',    label: 'Prime Video', emoji: '🎥' },
-    { host: 'hulu.com',          label: 'Hulu',        emoji: '📡' },
-    { host: 'max.com',           label: 'Max (HBO)',   emoji: '🎭' },
-    { host: 'peacocktv.com',     label: 'Peacock',     emoji: '🦚' },
-    { host: 'paramountplus.com', label: 'Paramount+',  emoji: '⭐' },
-    { host: 'crunchyroll.com',   label: 'Crunchyroll', emoji: '🍥' },
-    { host: 'vimeo.com',         label: 'Vimeo',       emoji: '🎞️' },
-    { host: 'dailymotion.com',   label: 'Dailymotion', emoji: '📹' },
-  ];
-
-  function renderStreamingSites() {
-    const container = $("streamingSites");
-    if (!container) return;
-    container.innerHTML = '';
-    for (const site of STREAMING_SITES) {
-      const entry = sites[site.host] || null;
-      const enabled = entry ? !!entry.enabled : !!settings.defaultEnabled;
-      const wrap = document.createElement('div');
-      wrap.className = 'site-chip' + (enabled ? ' enabled' : '');
-      const lbl = document.createElement('label');
-      lbl.className = 'site-chip-inner';
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.checked = enabled;
-      cb.addEventListener('change', async () => {
-        const cur = sites[site.host] || { enabled: !!settings.defaultEnabled, finishedEnabled: true };
-        cur.enabled = cb.checked;
-        sites[site.host] = cur;
-        wrap.classList.toggle('enabled', cur.enabled);
-        await chrome.storage.sync.set({ sites });
-        renderSitesTable();
-        showStatus(`${site.label}: ${cur.enabled ? 'enabled' : 'disabled'}`);
-        await broadcastApply();
-      });
-      const em = document.createElement('span');
-      em.className = 'site-emoji';
-      em.textContent = site.emoji;
-      em.setAttribute('aria-hidden', 'true');
-      const nm = document.createElement('span');
-      nm.className = 'site-name';
-      nm.textContent = site.label;
-      lbl.appendChild(cb); lbl.appendChild(em); lbl.appendChild(nm);
-      wrap.appendChild(lbl);
-      container.appendChild(wrap);
-    }
   }
 
 })();
