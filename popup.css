@@ -81,7 +81,7 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:13px/1.35
 /* ---- Footer ---- */
 .foot{border-top:1px solid var(--border);margin-top:8px;padding-top:8px}
 .foot small{color:var(--fg-dim)}
-.links{display:flex;gap:8px;justify-content:flex-start}
+.links{display:flex;justify-content:space-evenly}
 .link-btn{background:transparent;border:0;color:var(--accent);font-size:12px;cursor:pointer;padding:4px 0}
 .link-btn:hover{text-decoration:underline}
 .link-btn.danger{color:var(--danger)}
