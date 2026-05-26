@@ -72,6 +72,32 @@
           </label>
         </fieldset>
 
+        <fieldset class="grid-2">
+          <div>
+            <span class="label-block">VOD Timer Mode</span>
+            <div class="radio-group">
+              <label class="row">
+                <input type="radio" name="vodTimerMode" id="vodTimerModeCountdown" value="countdown" />
+                <span>⬇ Countdown (time remaining)</span>
+              </label>
+              <label class="row">
+                <input type="radio" name="vodTimerMode" id="vodTimerModeElapsed" value="elapsed" />
+                <span>⬆ Elapsed (time watched)</span>
+              </label>
+            </div>
+          </div>
+          <div>
+            <label>
+              Title Separator
+              <input id="separator" type="text" maxlength="10" placeholder=" • " />
+            </label>
+            <label class="row" style="margin-top:.6rem">
+              <input id="showPercent" type="checkbox" />
+              <span>Show % progress (e.g. 67%)</span>
+            </label>
+          </div>
+        </fieldset>
+
         <div class="buttons">
           <button type="button" id="save">Save</button>
           <button type="button" id="reset">Reset to defaults</button>
@@ -79,6 +105,12 @@
 
         <div id="status" aria-live="polite"></div>
       </form>
+    </section>
+
+    <section>
+      <h2>Streaming Sites</h2>
+      <p class="hint-text">Quickly enable or disable the timer on popular streaming services:</p>
+      <div class="sites-grid" id="streamingSites"></div>
     </section>
 
     <section>

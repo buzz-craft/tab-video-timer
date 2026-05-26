@@ -22,7 +22,10 @@ if (window.top === window.self) {
       liveShowElapsed: true,
       liveStickMs: 8000,
       ytNavGraceMs: 2500,
-      dvrQuarantineMs: 10000
+      dvrQuarantineMs: 10000,
+      vodTimerMode: 'countdown',
+      showPercent: false,
+      separator: ' • ',
     };
 
     // ---------- host helpers ----------
@@ -670,7 +673,7 @@ if (window.top === window.self) {
           lastElapsedShownSec = elapsedSec;
 
           const livePfx = (settings.prefixLivePlaying ?? settings.prefixPlaying ?? "🔴");
-          safeSetTitle(`${livePfx} ${fmtHMS(elapsedSec)} • ${baseTitle}`);
+          safeSetTitle(`${livePfx} ${fmtHMS(elapsedSec)}${settings.separator ?? ' • '}${baseTitle}`);
           lastIsPlaying = true;
           pausedSnapshot = null;
           return;
@@ -682,9 +685,13 @@ if (window.top === window.self) {
         if (inDvrQuarantine()) return;
         if (!Number.isFinite(dur) || dur <= 0) return;
         const cur = Number.isFinite(mediaPlaying.currentTime) ? mediaPlaying.currentTime : 0;
-        const left = clamp(Math.ceil(dur - cur), 0, dur);
+        const vodMode = settings.vodTimerMode ?? 'countdown';
+        const timeVal = vodMode === 'elapsed' ? cur : clamp(Math.ceil(dur - cur), 0, dur);
         const vodPfx = (settings.prefixVODPlaying ?? settings.prefixPlaying ?? "⏳");
-        safeSetTitle(`${vodPfx} ${fmtHMS(left)} • ${baseTitle}`);
+        const sep = settings.separator ?? ' • ';
+        let vodTimeStr = fmtHMS(timeVal);
+        if (settings.showPercent && dur > 0) vodTimeStr += ` (${Math.round((cur / dur) * 100)}%)`;
+        safeSetTitle(`${vodPfx} ${vodTimeStr}${sep}${baseTitle}`);
         lastIsPlaying = true;
         return;
       }
@@ -712,7 +719,7 @@ if (window.top === window.self) {
           pausedSnapshot = { kind: "live", elapsedSec };
 
           const baseTitle2 = currentBaseTitle();
-          safeSetTitle(`${settings.prefixPaused || "⏸"} ${fmtHMS(pausedSnapshot.elapsedSec)} • ${baseTitle2}`);
+          safeSetTitle(`${settings.prefixPaused || "⏸"} ${fmtHMS(pausedSnapshot.elapsedSec)}${settings.separator ?? ' • '}${baseTitle2}`);
           return;
         }
 
@@ -720,9 +727,13 @@ if (window.top === window.self) {
         hardResetLiveState();
         if (Number.isFinite(dur) && dur > 0 && !anyMedia.ended && !inDvrQuarantine()) {
           const cur = Number.isFinite(anyMedia.currentTime) ? anyMedia.currentTime : 0;
-          const left = clamp(Math.ceil(dur - cur), 0, dur);
+          const vodMode2 = settings.vodTimerMode ?? 'countdown';
+          const timeVal2 = vodMode2 === 'elapsed' ? cur : clamp(Math.ceil(dur - cur), 0, dur);
+          const sep2 = settings.separator ?? ' • ';
+          let vodTimeStr2 = fmtHMS(timeVal2);
+          if (settings.showPercent && dur > 0) vodTimeStr2 += ` (${Math.round((cur / dur) * 100)}%)`;
           const baseTitle3 = currentBaseTitle();
-          safeSetTitle(`${settings.prefixPaused || "⏸"} ${fmtHMS(left)} • ${baseTitle3}`);
+          safeSetTitle(`${settings.prefixPaused || "⏸"} ${vodTimeStr2}${sep2}${baseTitle3}`);
           sessionActive = true;
           return;
         }
@@ -736,7 +747,7 @@ if (window.top === window.self) {
           if (finishedUntil === 0) finishedUntil = holdMs === 0 ? Number.POSITIVE_INFINITY : t + holdMs;
           if (t <= finishedUntil) {
             const baseTitle4 = currentBaseTitle();
-            safeSetTitle(`${settings.finishedPrefix || "✓ Finished"} • ${baseTitle4}`);
+            safeSetTitle(`${settings.finishedPrefix || "✓ Finished"}${settings.separator ?? ' • '}${baseTitle4}`);
           }
           return;
         }
@@ -857,6 +868,29 @@ if (window.top === window.self) {
           override: (localHideInactiveOverride === null ? null : !!localHideInactiveOverride),
           global: !!settings.hideWhenInactive,
           effective: currentHideInactiveSetting() === true
+        });
+        return;
+      }
+
+      if (msg.type === "GET_VIDEO_STATE") {
+        const media = getPlayingMedia() || getAnyRelevantMedia();
+        if (!media) { sendResponse?.({ hasMedia: false, enabled: enabledForHost }); return; }
+        const vsDur = Number(media.duration);
+        const vsCur = Number.isFinite(media.currentTime) ? media.currentTime : 0;
+        const vsLive = isStrongLive(media);
+        const vsPlaying = !media.paused && !media.ended && media.readyState >= 2;
+        const vsOriginMs = liveStartMs ?? fallbackLiveStartMs ?? null;
+        sendResponse?.({
+          hasMedia: true,
+          isPlaying: vsPlaying,
+          isLive: vsLive,
+          currentTime: vsCur,
+          duration: Number.isFinite(vsDur) ? vsDur : null,
+          percent: (Number.isFinite(vsDur) && vsDur > 0) ? Math.round((vsCur / vsDur) * 100) : null,
+          timeLeft: (Number.isFinite(vsDur) && vsDur > 0) ? clamp(Math.ceil(vsDur - vsCur), 0, vsDur) : null,
+          liveElapsed: (vsLive && vsOriginMs) ? clamp((nowMs() - vsOriginMs) / 1000, 0, 48 * 3600) : null,
+          enabled: enabledForHost,
+          vodTimerMode: settings.vodTimerMode ?? 'countdown',
         });
         return;
       }

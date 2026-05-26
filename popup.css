@@ -64,3 +64,18 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:13px/1.35
 
 .foot{border-top:1px solid var(--border);margin-top:8px;padding-top:8px}
 .foot small{color:var(--fg-dim)}
+
+/* Status card */
+.status-card{padding:12px}
+.status-top{display:flex;align-items:flex-start;gap:10px}
+.status-icon{font-size:22px;line-height:1;flex-shrink:0;padding-top:3px}
+.status-info{flex:1;min-width:0}
+.status-text{font-size:12px;color:var(--fg-dim);margin-bottom:3px}
+.time-value{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--fg);letter-spacing:-.5px}
+.mono{font-variant-numeric:tabular-nums}
+
+/* Progress bar */
+.progress-wrap{margin-top:10px}
+.progress-track{height:5px;background:var(--border);border-radius:999px;overflow:hidden}
+.progress-fill{height:100%;background:var(--accent);border-radius:999px;transition:width .8s linear;min-width:0}
+.progress-labels{display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:var(--fg-dim)}
