@@ -26,8 +26,7 @@ No tracking. Settings stay in your browser (Chrome Sync optional).
 ---
 
 ## Install (for users)
-- **Chrome Web Store:** _link coming soon_  
-  *(Upload the ZIP built from `scripts/package.sh` and update this link.)*
+- **Chrome Web Store:** [Tab Video Timer](https://chromewebstore.google.com/detail/tab-video-timer/hdkokdinnckanaahfjnofhccmghmoekc)
 
 Or install unpacked (for development):
 1. `chrome://extensions`
@@ -69,7 +68,7 @@ Or install unpacked (for development):
 ### Watch Time & Alerts
 - **Track watch time** — records time spent watching per site, stored locally
 - **Daily limit** — shows a warning bar in the popup when exceeded (0 = disabled)
-- **Break reminder** — browser notification after N continuous minutes of watching (0 = disabled)
+- **Break reminder** — browser notification after N continuous minutes of watching (0 = disabled); timer resets on any pause
 - **Notify when video ends** — browser notification when a video finishes
 
 ### Per-site Control
@@ -103,7 +102,7 @@ No external requests. No analytics.
 ## Troubleshooting
 - **Live timer off / drifting:** some pages expose wrong start timestamps. The extension prefers the live edge and sanity-checks all values. Open an issue with the URL if consistently wrong.
 - **59:59 on YouTube after reload:** DVR quarantine prevents the false 59:59 duration from showing.
-- **Stats not updating:** watch-time is flushed every 30 seconds and on page unload. Short visits under 5 seconds are not recorded.
+- **Stats not updating:** watch-time is flushed every 30 seconds, on video end, and reliably on page unload. Short visits under 5 seconds are not recorded.
 - **Overlay not appearing:** enable it in the popup ("Show page overlay") or in Options → Playback Display.
 
 ---
