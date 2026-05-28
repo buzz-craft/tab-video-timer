@@ -306,8 +306,13 @@ if (window.top === window.self) {
       const vidNow = ytVideoIdFromUrl(location.href); const vidChanged = vidNow !== currentVid; currentVid = vidNow;
       sessionActive = false; finishedUntil = 0; dvrQuarantineUntil = 0; hardResetLiveState(); pausedSnapshot = null; lastIsPlaying = false; lastApplied = "";
       if (vidChanged) hardResetLiveState();
-      // reset watch-time for new page
-      onWatchPaused(); watchAccumSecs = 0; continuousWatchSecs = 0; continuousSegStart = null; breakReminderFired = false;
+      // flush accumulated watch-time before resetting counters
+      onWatchPaused();
+      const flushSecs = Math.floor(watchAccumSecs);
+      if (flushSecs >= 5) {
+        chrome.runtime.sendMessage({ type: "WATCH_TIME_UPDATE", site: canonicalHost(location.hostname), seconds: flushSecs }).catch(() => {});
+      }
+      watchAccumSecs = 0; continuousWatchSecs = 0; continuousSegStart = null; breakReminderFired = false;
     }
 
     // ─── ENABLEMENT ──────────────────────────────────────────────────────────
@@ -331,6 +336,7 @@ if (window.top === window.self) {
     }
     function onWatchPaused() {
       if (watchSegmentStart) { watchAccumSecs += (nowMs() - watchSegmentStart) / 1000; watchSegmentStart = null; }
+      if (continuousSegStart) { continuousWatchSecs += (nowMs() - continuousSegStart) / 1000; continuousSegStart = null; }
     }
     function getContinuousSecs() { return continuousWatchSecs + (continuousSegStart ? (nowMs() - continuousSegStart) / 1000 : 0); }
     async function reportWatchTime() {
@@ -589,7 +595,7 @@ if (window.top === window.self) {
     let bodyObserver = null, metaObserver = null;
     function startObservers() {
       if (!bodyObserver) { bodyObserver = new MutationObserver(() => { const v = getAnyRelevantMedia(); if (v && v !== currentVideoNode) { currentVideoNode = v; hardResetLiveState(); lastApplied = ""; finishedUntil = 0; } }); bodyObserver.observe(document.body, { childList: true, subtree: true }); }
-      if (!metaObserver) { metaObserver = new MutationObserver(() => setTimeout(tick, 0)); metaObserver.observe(document.head || document.documentElement, { childList: true, subtree: true, attributes: true }); }
+      if (!metaObserver) { metaObserver = new MutationObserver(() => setTimeout(tick, 0)); metaObserver.observe(document.head || document.documentElement, { childList: true, subtree: true, attributes: true, characterData: true }); }
     }
 
     // ─── SETTINGS LOAD ───────────────────────────────────────────────────────
@@ -603,6 +609,7 @@ if (window.top === window.self) {
         for (const [k, v] of Object.entries(raw)) sitesCanon[canonicalHost(k)] = v;
         currentVid = ytVideoIdFromUrl(location.href);
         if (isTwitch()) lastTwitchIdentity = `${twitchChannelLogin()}::${findTwitchStreamIdFromApollo(getApollo())||"?"}`;
+        computeEnabledFlags();
         if (settings.showOverlay && enabledForHost) toggleOverlay(true);
       } catch {}
     }

@@ -2,6 +2,17 @@
 All notable changes to this project will be documented in this file.
 Format inspired by Keep a Changelog. Versioning: SemVer.
 
+## 2.0.2 — 2026-05-28
+### Fixed
+- **Overlay on load:** overlay now correctly shows on page load when "Show overlay by default" is enabled; previously `computeEnabledFlags()` was not called before the overlay visibility check in `loadSettings()`.
+- **Watch-time lost on SPA navigation:** accumulated watch-time is now flushed to storage before counters are reset on YouTube/SPA page transitions; previously seconds watched on the current video were discarded.
+- **Break reminder misfiring after pause/resume:** the continuous-watch timer now pauses when playback pauses (`onWatchPaused` clears `continuousSegStart`); previously the timer kept running through pauses, causing the reminder to fire too early on resume.
+- **Tab title briefly reverting on YouTube chapter change:** `metaObserver` now includes `characterData: true` so it catches direct `<title>` text mutations made by YouTube's own JS, not just child-list changes.
+- **Video picker flicker:** picker list is no longer re-rendered on every 1-second poll; it only rebuilds when the video list shape or selection actually changes, preventing clicks from being swallowed during re-render.
+
+### Notes
+- No new permissions. No analytics.
+
 ## 2.0.1 — 2026-05-26
 ### Changed
 - **Extension icon:** redesigned at all sizes (16×16, 48×48, 128×128) — modern rounded-square with dark-blue gradient background and white hourglass; replaces the old flat cyan icon.
