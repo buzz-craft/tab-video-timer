@@ -415,9 +415,15 @@
       const vl = state.videoList ?? [];
       if (vl.length > 1) {
         pickerCard.hidden = false;
-        renderVideoList(vl, state.selectedVideoIndex ?? 0, tab.id);
+        // only re-render if list shape or selection changed to avoid picker flicker
+        const key = vl.map(v => `${v.index}:${v.duration}:${v.width}x${v.height}`).join("|") + "|sel:" + (state.selectedVideoIndex ?? 0);
+        if (key !== lastVideoListKey) {
+          lastVideoListKey = key;
+          renderVideoList(vl, state.selectedVideoIndex ?? 0, tab.id);
+        }
       } else {
         pickerCard.hidden = true;
+        lastVideoListKey = "";
       }
     }
   }
@@ -479,6 +485,7 @@
   // Video state polling (Now Playing tab)
   // -------------------------------------------------------------------------
   let vsTimer = null;
+  let lastVideoListKey = "";
 
   async function pollVideoState() {
     try {

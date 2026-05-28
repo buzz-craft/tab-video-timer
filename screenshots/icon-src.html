@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:128px;height:128px;overflow:hidden;background:#fff;}
+body{display:flex;align-items:center;justify-content:center;}
+
+svg{width:128px;height:128px;}
+</style>
+</head>
+<body>
+<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- icon background gradient -->
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <!-- inner glow -->
+    <radialGradient id="glow" cx="40%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity=".5"/>
+      <stop offset="100%" stop-color="#1e3a8a" stop-opacity="0"/>
+    </radialGradient>
+    <!-- hourglass gradient (top half brighter) -->
+    <linearGradient id="hgTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#bfdbfe"/>
+    </linearGradient>
+    <linearGradient id="hgBot" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#93c5fd"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+    <clipPath id="roundRect">
+      <rect width="128" height="128" rx="28" ry="28"/>
+    </clipPath>
+  </defs>
+
+  <!-- rounded square background -->
+  <rect width="128" height="128" rx="28" ry="28" fill="url(#bgGrad)"/>
+  <rect width="128" height="128" rx="28" ry="28" fill="url(#glow)"/>
+
+  <!-- subtle inner border highlight -->
+  <rect x="1" y="1" width="126" height="126" rx="27" ry="27"
+        fill="none" stroke="rgba(255,255,255,.12)" stroke-width="1.5"/>
+
+  <!-- HOURGLASS — centered at 64,64, total height ~72, width ~52 -->
+  <!-- top cap bar -->
+  <rect x="30" y="24" width="68" height="8" rx="4" fill="url(#hgTop)"/>
+  <!-- bottom cap bar -->
+  <rect x="30" y="96" width="68" height="8" rx="4" fill="url(#hgBot)"/>
+
+  <!-- top sand body (trapezoid pointing down) -->
+  <!-- vertices: top-left(30,32), top-right(98,32), mid(64,64) -->
+  <polygon points="30,32 98,32 64,63" fill="url(#hgTop)" opacity=".95"/>
+
+  <!-- bottom sand body (trapezoid pointing up) -->
+  <polygon points="30,96 98,96 64,65" fill="url(#hgBot)" opacity=".95"/>
+
+  <!-- waist highlight line -->
+  <line x1="30" y1="64" x2="98" y2="64" stroke="rgba(255,255,255,.18)" stroke-width="1"/>
+
+  <!-- sand fill in bottom — small pile to show time passing -->
+  <!-- small triangle inside bottom half -->
+  <polygon points="46,94 82,94 64,78" fill="rgba(255,255,255,.35)"/>
+
+  <!-- drip dot at waist -->
+  <circle cx="64" cy="64" r="3.5" fill="white" opacity=".9"/>
+
+  <!-- play-triangle accent — bottom right corner, subtle -->
+  <g opacity=".55">
+    <polygon points="90,88 104,96 90,104" fill="white"/>
+  </g>
+</svg>
+</body>
+</html>

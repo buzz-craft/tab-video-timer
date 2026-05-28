@@ -1,0 +1,154 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1280px;height:800px;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:80px}
+
+/* left: browser + popup */
+.left{display:flex;flex-direction:column;align-items:center;gap:0;position:relative}
+.toolbar{width:380px;background:#111827;border-radius:10px 10px 0 0;padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #1f2937}
+.dots{display:flex;gap:5px}
+.dot{width:11px;height:11px;border-radius:50%}
+.dot.r{background:#ef4444}.dot.y{background:#f59e0b}.dot.g{background:#22c55e}
+.ext-icon{width:20px;height:20px;background:#2563eb;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;margin-left:auto;cursor:pointer}
+.ext-icon-active{box-shadow:0 0 0 2px #3b82f6,0 0 12px rgba(59,130,246,.5)}
+
+/* popup */
+.popup{width:360px;background:#0b0f15;border-radius:0 0 10px 10px;border:1px solid #1f2937;border-top:none;padding:12px;box-shadow:0 24px 60px rgba(0,0,0,.7)}
+.popup-header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #1f2937;padding-bottom:8px;margin-bottom:0}
+.popup-title{font-size:14px;font-weight:700;color:#e5e7eb}
+.live-badge{background:#ef4444;color:#fff;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700}
+
+.popup-tabs{display:flex;border-bottom:1px solid #1f2937;margin-bottom:10px}
+.ptab{flex:1;background:transparent;border:none;border-bottom:2px solid transparent;color:#9ca3af;font-size:12px;font-weight:600;padding:8px 4px;cursor:pointer;text-align:center}
+.ptab.active{color:#60a5fa;border-bottom-color:#60a5fa}
+
+/* status card */
+.card{border:1px solid #1f2937;border-radius:10px;padding:12px;margin-bottom:8px}
+.status-top{display:flex;align-items:flex-start;gap:10px}
+.status-icon{font-size:26px;line-height:1;flex-shrink:0;padding-top:2px}
+.status-info{flex:1}
+.status-meta{display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap}
+.status-text{font-size:12px;color:#9ca3af}
+.rate-badge{background:#60a5fa;color:#0b0f15;border-radius:999px;padding:1px 7px;font-size:10px;font-weight:700}
+.chapter{font-size:11px;color:#9ca3af;font-style:italic;margin-bottom:3px}
+.time-value{font-size:24px;font-weight:800;color:#e5e7eb;letter-spacing:-1px;margin-top:2px;font-variant-numeric:tabular-nums}
+
+.progress-wrap{margin-top:10px}
+.progress-track{height:5px;background:#1f2937;border-radius:999px;overflow:hidden}
+.progress-fill{height:100%;background:#60a5fa;border-radius:999px;width:42%}
+.progress-labels{display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:#9ca3af;font-variant-numeric:tabular-nums}
+
+/* controls */
+.btn-row{display:flex;gap:8px;margin-bottom:8px}
+.btn{display:flex;align-items:center;justify-content:center;gap:6px;flex:1;background:#111827;border:1px solid #1f2937;border-radius:8px;padding:8px;color:#e5e7eb;font-size:12px;font-weight:500}
+.btn.blue{background:#0f172a;color:#93c5fd;border-color:#1e3a5f}
+.pref-row{display:flex;align-items:center;gap:8px;padding:4px 0}
+.pref-row input{width:14px;height:14px}
+.pref-row label{font-size:12px;color:#e5e7eb}
+.foot{border-top:1px solid #1f2937;margin-top:8px;padding-top:8px;display:flex;justify-content:space-evenly}
+.link-btn{background:transparent;border:0;color:#60a5fa;font-size:12px;cursor:pointer}
+
+/* right: feature list */
+.right{max-width:420px}
+.right h2{font-size:32px;font-weight:800;color:#f1f5f9;letter-spacing:-.5px;margin-bottom:8px;line-height:1.2}
+.right p{font-size:15px;color:#94a3b8;margin-bottom:24px;line-height:1.5}
+.feature-list{display:flex;flex-direction:column;gap:14px}
+.feat{display:flex;align-items:flex-start;gap:12px}
+.feat-icon{font-size:22px;flex-shrink:0;margin-top:2px}
+.feat-body{}
+.feat-title{font-size:14px;font-weight:700;color:#e2e8f0;margin-bottom:2px}
+.feat-desc{font-size:12px;color:#94a3b8;line-height:1.4}
+</style>
+</head>
+<body>
+
+<div class="left">
+  <div class="toolbar">
+    <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+    <div class="ext-icon ext-icon-active">⏱</div>
+  </div>
+  <div class="popup">
+    <div class="popup-header">
+      <span class="popup-title">Tab Video Timer</span>
+    </div>
+    <div class="popup-tabs">
+      <div class="ptab active">Now Playing</div>
+      <div class="ptab">Stats</div>
+    </div>
+
+    <!-- status card -->
+    <div class="card" style="padding:12px">
+      <div class="status-top">
+        <span class="status-icon">▶️</span>
+        <div class="status-info">
+          <div class="status-meta">
+            <span class="status-text">Playing · VOD</span>
+            <span class="rate-badge">@1.5×</span>
+          </div>
+          <div class="chapter">Chapter 4: Functions &amp; Closures</div>
+          <div class="time-value">14:32</div>
+        </div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-track"><div class="progress-fill"></div></div>
+        <div class="progress-labels"><span>1:30:28</span><span>2:34:00</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="btn-row">
+        <div class="btn">🔊 Mute</div>
+        <div class="btn blue">⏱ Disable timer</div>
+      </div>
+      <div class="pref-row"><input type="checkbox"/><label>Hide timer when tab inactive</label></div>
+      <div class="pref-row"><input type="checkbox" checked/><label>Show "Finished" on this site</label></div>
+      <div class="pref-row"><input type="checkbox" checked/><label>Show page overlay</label></div>
+    </div>
+
+    <div class="foot">
+      <button class="link-btn">Options</button>
+      <button class="link-btn">Shortcuts</button>
+    </div>
+  </div>
+</div>
+
+<div class="right">
+  <h2>Everything at a glance in the popup</h2>
+  <p>Click the extension icon for a full status card — no digging through settings.</p>
+  <div class="feature-list">
+    <div class="feat">
+      <div class="feat-icon">⏱</div>
+      <div class="feat-body">
+        <div class="feat-title">Large time display</div>
+        <div class="feat-desc">Countdown or elapsed shown in a large, easy-to-read format with playing/paused state</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">⚡</div>
+      <div class="feat-body">
+        <div class="feat-title">Rate badge</div>
+        <div class="feat-desc">Shows @1.5× or @2× when watching at a higher speed — countdown adjusts automatically</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">📖</div>
+      <div class="feat-body">
+        <div class="feat-title">YouTube chapter title</div>
+        <div class="feat-desc">Current chapter name shown in the popup and prepended to the tab title</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">📊</div>
+      <div class="feat-body">
+        <div class="feat-title">Progress bar</div>
+        <div class="feat-desc">Visual bar with elapsed and total timestamps so you know exactly where you are</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

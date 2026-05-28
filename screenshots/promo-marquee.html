@@ -1,0 +1,263 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  width:1400px;height:560px;overflow:hidden;
+  background:#080c14;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  position:relative;
+}
+
+/* ── background ── */
+.bg-grad{
+  position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 700px 500px at 20% 50%, rgba(29,78,216,.22) 0%, transparent 70%),
+    radial-gradient(ellipse 500px 400px at 80% 20%, rgba(96,165,250,.10) 0%, transparent 70%),
+    radial-gradient(ellipse 400px 350px at 75% 85%, rgba(139,92,246,.10) 0%, transparent 70%);
+}
+.grid{
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+  background-size:40px 40px;
+}
+/* subtle horizontal streak */
+.streak{
+  position:absolute;top:50%;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent 0%,rgba(96,165,250,.15) 30%,rgba(96,165,250,.25) 50%,rgba(96,165,250,.15) 70%,transparent 100%);
+  transform:translateY(-50%);
+}
+
+/* ── LEFT section ── */
+.left{
+  position:absolute;left:0;top:0;bottom:0;width:520px;
+  display:flex;flex-direction:column;justify-content:center;
+  padding:60px 56px;
+  z-index:2;
+}
+
+.badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(37,99,235,.18);border:1px solid rgba(96,165,250,.3);
+  border-radius:999px;padding:4px 12px;
+  font-size:11px;font-weight:700;color:#93c5fd;letter-spacing:.4px;
+  text-transform:uppercase;
+  margin-bottom:20px;
+  width:fit-content;
+}
+
+.main-title{
+  font-size:52px;font-weight:900;
+  color:#f1f5f9;letter-spacing:-2px;line-height:.95;
+  margin-bottom:16px;
+}
+.main-title .accent{
+  background:linear-gradient(135deg,#60a5fa,#818cf8);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+
+.tagline{
+  font-size:16px;color:#94a3b8;line-height:1.55;
+  margin-bottom:28px;
+  max-width:380px;
+}
+.tagline strong{color:#cbd5e1;font-weight:600;}
+
+/* pill features */
+.pills{display:flex;flex-wrap:wrap;gap:8px;}
+.pill{
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:999px;padding:5px 13px;
+  font-size:12px;color:#cbd5e1;font-weight:500;
+  display:flex;align-items:center;gap:5px;
+}
+
+/* ── CENTER divider ── */
+.divider{
+  position:absolute;left:520px;top:60px;bottom:60px;width:1px;
+  background:linear-gradient(180deg,transparent,rgba(255,255,255,.1) 30%,rgba(255,255,255,.1) 70%,transparent);
+  z-index:2;
+}
+
+/* ── RIGHT section ── */
+.right{
+  position:absolute;left:556px;top:0;right:0;bottom:0;
+  display:flex;flex-direction:column;justify-content:center;
+  padding:44px 56px 44px 36px;
+  gap:20px;
+  z-index:2;
+}
+
+/* browser mock */
+.browser{
+  background:#111827;border-radius:12px;
+  overflow:hidden;
+  box-shadow:0 16px 48px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.07);
+}
+.browser-bar{
+  background:#0b0f15;padding:8px 14px;
+  display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid #1f2937;
+}
+.dots{display:flex;gap:5px}
+.dot{width:10px;height:10px;border-radius:50%}
+.dot.r{background:#ef4444}.dot.y{background:#f59e0b}.dot.g{background:#22c55e}
+.addr{flex:1;background:#1a1f2e;border-radius:5px;padding:4px 10px;font-size:11px;color:#4b5563;margin:0 10px;}
+
+/* tab bar */
+.tab-bar{
+  background:#080c14;display:flex;align-items:flex-end;
+  padding:0 6px;gap:2px;border-bottom:1px solid #1f2937;
+}
+.btab{
+  padding:7px 12px;font-size:11.5px;border-radius:7px 7px 0 0;
+  display:flex;align-items:center;gap:5px;white-space:nowrap;
+  max-width:230px;overflow:hidden;text-overflow:ellipsis;
+}
+.btab.active{
+  background:#111827;color:#f1f5f9;
+  border:1px solid #1f2937;border-bottom:1px solid #111827;
+  margin-bottom:-1px;
+}
+.btab.dim{color:#4b5563;}
+.btab .tx{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.btab .close{color:#374151;margin-left:auto;padding-left:4px;flex-shrink:0}
+
+/* stats mini-card row */
+.stats-row{
+  display:flex;gap:14px;
+}
+.stat-card{
+  flex:1;background:#111827;border-radius:10px;
+  border:1px solid #1f2937;
+  padding:12px 14px;
+  box-shadow:0 8px 24px rgba(0,0,0,.4);
+}
+.sc-label{font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.sc-value{font-size:22px;font-weight:800;color:#e5e7eb;font-variant-numeric:tabular-nums;letter-spacing:-.5px;margin-bottom:6px;}
+.sc-bar-track{height:4px;background:#1f2937;border-radius:999px;overflow:hidden;}
+.sc-bar-fill{height:100%;border-radius:999px;}
+.sc-sub{font-size:10px;color:#6b7280;margin-top:4px;}
+
+/* overlay pill */
+.overlay-pill{
+  position:absolute;right:70px;bottom:20px;
+  background:rgba(0,0,0,.82);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:10px;padding:8px 14px;
+  display:flex;flex-direction:column;align-items:center;gap:1px;
+  box-shadow:0 4px 16px rgba(0,0,0,.5);
+}
+.ovl-label{font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;font-weight:600;}
+.ovl-time{font-size:20px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:-1px;}
+.ovl-sub{font-size:9px;color:rgba(255,255,255,.35);}
+</style>
+</head>
+<body>
+<div class="bg-grad"></div>
+<div class="grid"></div>
+<div class="streak"></div>
+
+<!-- LEFT -->
+<div class="left">
+  <div class="badge">✦ Chrome Extension · v2.0</div>
+
+  <div class="main-title">
+    Tab<br/>Video<br/><span class="accent">Timer</span>
+  </div>
+
+  <div class="tagline">
+    Your video info — right in the tab title.<br/>
+    <strong>Countdown, elapsed, speed-aware.</strong><br/>
+    Watch-time stats. Break reminders. No tracking.
+  </div>
+
+  <div class="pills">
+    <div class="pill">⏳ VOD countdown</div>
+    <div class="pill">🔴 LIVE elapsed</div>
+    <div class="pill">⚡ Speed-aware</div>
+    <div class="pill">📊 Stats</div>
+    <div class="pill">🔔 Break reminders</div>
+    <div class="pill">⧉ Overlay</div>
+    <div class="pill">🔒 No tracking</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- RIGHT -->
+<div class="right">
+
+  <!-- browser with tabs -->
+  <div class="browser" style="position:relative;">
+    <div class="browser-bar">
+      <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+      <div class="addr">youtube.com/watch</div>
+    </div>
+    <div class="tab-bar">
+      <div class="btab active">
+        <span class="tx">⏳ 14:32 • Python Full Course — Week 4</span>
+        <span class="close">×</span>
+      </div>
+      <div class="btab dim">
+        <span class="tx">🔴 1:23:45 • LIVE Stream</span>
+        <span class="close">×</span>
+      </div>
+      <div class="btab dim">
+        <span class="tx">⏳ 8:02 @1.5× • CSS Tutorial</span>
+        <span class="close">×</span>
+      </div>
+      <div class="btab dim" style="color:#374151">
+        <span class="tx">⏸ 45:10 • Documentary</span>
+        <span class="close">×</span>
+      </div>
+    </div>
+    <!-- video area -->
+    <div style="height:100px;background:linear-gradient(160deg,#0d1117 0%,#161b22 60%,#0d1117 100%);display:flex;align-items:center;justify-content:center;position:relative;">
+      <div style="font-size:40px;opacity:.7;">▶</div>
+      <div style="position:absolute;bottom:10px;left:14px;right:14px;">
+        <div style="height:3px;background:rgba(255,255,255,.15);border-radius:2px;position:relative;">
+          <div style="position:absolute;left:0;top:0;height:100%;width:42%;background:#f00;border-radius:2px;"></div>
+        </div>
+      </div>
+      <!-- overlay -->
+      <div class="overlay-pill">
+        <div class="ovl-label">Playing</div>
+        <div class="ovl-time">14:32</div>
+        <div class="ovl-sub">remaining · @1.5×</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- stats row -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="sc-label">Today</div>
+      <div class="sc-value">2h 47m</div>
+      <div class="sc-bar-track"><div class="sc-bar-fill" style="width:73%;background:#60a5fa;"></div></div>
+      <div class="sc-sub">73% of daily limit</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">youtube.com</div>
+      <div class="sc-value">2h 13m</div>
+      <div class="sc-bar-track"><div class="sc-bar-fill" style="width:80%;background:#818cf8;"></div></div>
+      <div class="sc-sub">today's top site</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">This week</div>
+      <div class="sc-value">11h 18m</div>
+      <div class="sc-bar-track"><div class="sc-bar-fill" style="width:60%;background:#34d399;"></div></div>
+      <div class="sc-sub">across 4 sites</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

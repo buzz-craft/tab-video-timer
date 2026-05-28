@@ -1,0 +1,174 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1280px;height:800px;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:72px}
+
+/* browser window */
+.browser{width:700px;background:#1e2532;border-radius:14px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.7);position:relative}
+.browser-bar{background:#111827;padding:10px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #1f2937}
+.dots{display:flex;gap:6px}
+.dot{width:12px;height:12px;border-radius:50%}
+.dot.r{background:#ef4444}.dot.y{background:#f59e0b}.dot.g{background:#22c55e}
+.addr{flex:1;background:#0b0f15;border-radius:6px;padding:5px 12px;font-size:12px;color:#6b7280;margin:0 12px}
+
+/* tabs */
+.tabs-bar{background:#0b0f15;display:flex;align-items:flex-end;padding:0 8px;gap:2px;border-bottom:1px solid #1f2937}
+.tab{padding:8px 14px 8px;font-size:12px;border-radius:8px 8px 0 0;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.tab.active{background:#1e2532;color:#f1f5f9;border:1px solid #1f2937;border-bottom:1px solid #1e2532;margin-bottom:-1px}
+.tab-close{color:#6b7280;margin-left:auto;font-size:14px;padding-left:6px}
+
+/* page content */
+.page{height:480px;background:#0f0f0f;position:relative;overflow:hidden}
+
+/* video player mock */
+.player{width:100%;height:100%;background:#000;position:relative;display:flex;flex-direction:column}
+.video-area{flex:1;background:linear-gradient(180deg,#0d1117 0%,#161b22 40%,#0d1117 100%);display:flex;align-items:center;justify-content:center;position:relative}
+.play-btn{font-size:52px;opacity:.8}
+.video-title-overlay{position:absolute;top:16px;left:16px;right:16px;font-size:13px;color:rgba(255,255,255,.6)}
+
+.player-controls{background:rgba(0,0,0,.9);padding:8px 12px}
+.player-bar{height:4px;background:rgba(255,255,255,.2);border-radius:2px;margin-bottom:8px;position:relative}
+.player-fill{position:absolute;left:0;top:0;height:100%;background:#f00;border-radius:2px;width:38%}
+.player-dot{position:absolute;top:-4px;width:12px;height:12px;background:#f00;border-radius:50%;left:calc(38% - 6px)}
+.player-btns{display:flex;align-items:center;gap:12px}
+.player-btn{font-size:14px;color:rgba(255,255,255,.8);cursor:pointer}
+.player-time{font-size:12px;color:rgba(255,255,255,.7);margin-left:4px;font-variant-numeric:tabular-nums}
+.player-vol{margin-left:auto;display:flex;align-items:center;gap:8px}
+.player-vol-bar{width:60px;height:4px;background:rgba(255,255,255,.2);border-radius:2px}
+.player-vol-fill{height:100%;background:rgba(255,255,255,.8);border-radius:2px;width:70%}
+.settings-icon{font-size:14px;color:rgba(255,255,255,.6)}
+
+/* OVERLAY */
+.tvt-overlay{
+  position:absolute;
+  bottom:68px;right:16px;
+  background:rgba(0,0,0,.82);
+  backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;
+  padding:10px 14px;
+  display:flex;flex-direction:column;align-items:center;
+  gap:2px;
+  cursor:grab;
+  box-shadow:0 4px 20px rgba(0,0,0,.6);
+  z-index:10;
+}
+.ovl-state{font-size:10px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.6px;font-weight:600}
+.ovl-time{font-size:22px;font-weight:800;color:#fff;letter-spacing:-1px;font-variant-numeric:tabular-nums;line-height:1}
+.ovl-sub{font-size:10px;color:rgba(255,255,255,.45)}
+.drag-hint{position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:rgba(37,99,235,.8);color:#fff;font-size:10px;border-radius:6px;padding:2px 8px;white-space:nowrap}
+
+/* right */
+.right{max-width:380px}
+.right h2{font-size:32px;font-weight:800;color:#f1f5f9;letter-spacing:-.5px;margin-bottom:8px;line-height:1.2}
+.right p{font-size:15px;color:#94a3b8;margin-bottom:24px;line-height:1.5}
+.feature-list{display:flex;flex-direction:column;gap:14px}
+.feat{display:flex;align-items:flex-start;gap:12px}
+.feat-icon{font-size:22px;flex-shrink:0;margin-top:2px}
+.feat-title{font-size:14px;font-weight:700;color:#e2e8f0;margin-bottom:2px}
+.feat-desc{font-size:12px;color:#94a3b8;line-height:1.4}
+
+/* video picker popup card */
+.picker-card{
+  position:absolute;top:80px;left:50%;transform:translateX(-50%);
+  background:#0b0f15;border:1px solid #1f2937;border-radius:10px;
+  padding:10px;width:240px;
+  box-shadow:0 8px 32px rgba(0,0,0,.6);
+  z-index:10;
+}
+.picker-title{font-size:10px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px}
+.video-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;font-size:11px;border:1px solid transparent;background:#111827;margin-bottom:4px}
+.video-item.sel{border-color:#60a5fa;background:#0f172a;color:#60a5fa}
+.vi-idx{font-weight:700;color:#6b7280;min-width:16px;text-align:center;flex-shrink:0}
+.vi-idx.s{color:#60a5fa}
+.vi-dur{font-variant-numeric:tabular-nums;margin-left:auto;color:#6b7280;flex-shrink:0}
+.vi-dur.s{color:#60a5fa}
+</style>
+</head>
+<body>
+
+<div class="browser">
+  <div class="browser-bar">
+    <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+    <div class="addr">coursera.org/learn/python/week/4</div>
+  </div>
+  <div class="tabs-bar">
+    <div class="tab active">
+      <span>⏳ 14:32 • Python Functions — Full Course</span>
+      <span class="tab-close">×</span>
+    </div>
+  </div>
+  <div class="page">
+    <div class="player">
+      <div class="video-area">
+        <div class="video-title-overlay">Python for Everybody — Week 4: Functions &amp; Closures</div>
+        <div class="play-btn">▶</div>
+        <!-- OVERLAY -->
+        <div class="tvt-overlay">
+          <div class="drag-hint">drag to reposition</div>
+          <div class="ovl-state">Playing</div>
+          <div class="ovl-time">14:32</div>
+          <div class="ovl-sub">remaining · 1.5×</div>
+        </div>
+      </div>
+      <div class="player-controls">
+        <div class="player-bar">
+          <div class="player-fill"></div>
+          <div class="player-dot"></div>
+        </div>
+        <div class="player-btns">
+          <span class="player-btn">⏮</span>
+          <span class="player-btn">▶</span>
+          <span class="player-btn">⏭</span>
+          <span class="player-time">1:30:28 / 2:34:00</span>
+          <div class="player-vol">
+            <span class="player-btn">🔊</span>
+            <div class="player-vol-bar"><div class="player-vol-fill"></div></div>
+          </div>
+          <span class="settings-icon" style="margin-left:8px">⚙</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="right">
+  <h2>A floating timer that stays on top</h2>
+  <p>The page overlay keeps your countdown visible no matter what's on screen — drag it anywhere.</p>
+  <div class="feature-list">
+    <div class="feat">
+      <div class="feat-icon">⧉</div>
+      <div class="feat-body">
+        <div class="feat-title">Draggable overlay</div>
+        <div class="feat-desc">Floating timer hovers over any page — drag to any position you prefer</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">📌</div>
+      <div class="feat-body">
+        <div class="feat-title">Configurable position</div>
+        <div class="feat-desc">Lock it to bottom-right, bottom-left, top-right, or top-left in Options</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🎬</div>
+      <div class="feat-body">
+        <div class="feat-title">Multi-video picker</div>
+        <div class="feat-desc">On pages with multiple players, choose which video to track from the popup</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🔇</div>
+      <div class="feat-body">
+        <div class="feat-title">One-click mute</div>
+        <div class="feat-desc">Mute or unmute all media on the page, including embedded iframes</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

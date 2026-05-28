@@ -1,0 +1,134 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1280px;height:800px;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:64px}
+
+/* options window */
+.win{width:640px;background:#111827;border-radius:14px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.7)}
+.win-bar{background:#0b0f15;padding:10px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #1f2937}
+.dots{display:flex;gap:6px}
+.dot{width:12px;height:12px;border-radius:50%}
+.dot.r{background:#ef4444}.dot.y{background:#f59e0b}.dot.g{background:#22c55e}
+.win-title{font-size:13px;font-weight:600;color:#9ca3af;margin-left:auto;margin-right:auto}
+
+.opts-body{padding:20px;display:flex;flex-direction:column;gap:0;max-height:730px;overflow:hidden}
+.opts-title{font-size:20px;font-weight:800;color:#e5e7eb;margin-bottom:18px;letter-spacing:-.3px}
+
+.section{margin-bottom:16px}
+.section-title{font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #1f2937}
+
+.opt-row{display:flex;align-items:center;gap:10px;padding:5px 0}
+.opt-label{font-size:13px;color:#d1d5db;flex:1}
+.opt-sub{font-size:11px;color:#6b7280;flex:1}
+.opt-input{background:#0b0f15;border:1px solid #1f2937;border-radius:6px;padding:4px 8px;color:#e5e7eb;font-size:12px;width:80px}
+.opt-select{background:#0b0f15;border:1px solid #1f2937;border-radius:6px;padding:4px 8px;color:#e5e7eb;font-size:12px;width:130px}
+.opt-check{width:15px;height:15px;flex-shrink:0}
+.opt-check-row{display:flex;align-items:center;gap:10px;padding:4px 0}
+.save-btn{background:#2563eb;color:#fff;border:none;border-radius:8px;padding:7px 18px;font-size:12px;font-weight:600;cursor:pointer;margin-top:6px}
+
+/* right */
+.right{max-width:400px}
+.right h2{font-size:32px;font-weight:800;color:#f1f5f9;letter-spacing:-.5px;margin-bottom:8px;line-height:1.2}
+.right p{font-size:15px;color:#94a3b8;margin-bottom:24px;line-height:1.5}
+.feature-list{display:flex;flex-direction:column;gap:14px}
+.feat{display:flex;align-items:flex-start;gap:12px}
+.feat-icon{font-size:22px;flex-shrink:0;margin-top:2px}
+.feat-title{font-size:14px;font-weight:700;color:#e2e8f0;margin-bottom:2px}
+.feat-desc{font-size:12px;color:#94a3b8;line-height:1.4}
+</style>
+</head>
+<body>
+
+<div class="win">
+  <div class="win-bar">
+    <div class="dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+    <div class="win-title">Tab Video Timer — Options</div>
+  </div>
+  <div class="opts-body">
+    <div class="opts-title">Options</div>
+
+    <div class="section">
+      <div class="section-title">Display</div>
+      <div class="opt-row">
+        <div class="opt-label">VOD Timer Mode</div>
+        <select class="opt-select"><option>Countdown (time left)</option></select>
+      </div>
+      <div class="opt-row">
+        <div class="opt-label">Live prefix</div>
+        <input class="opt-input" value="🔴 LIVE"/>
+      </div>
+      <div class="opt-row">
+        <div class="opt-label">VOD prefix</div>
+        <input class="opt-input" value="⏳"/>
+      </div>
+      <div class="opt-row">
+        <div class="opt-label">Paused prefix</div>
+        <input class="opt-input" value="⏸"/>
+      </div>
+      <div class="opt-row">
+        <div class="opt-label">Title separator</div>
+        <input class="opt-input" value=" • "/>
+      </div>
+      <div class="opt-check-row"><input class="opt-check" type="checkbox" checked/><span class="opt-label">Show % progress in tab title</span></div>
+      <div class="opt-check-row"><input class="opt-check" type="checkbox" checked/><span class="opt-label">Speed-aware countdown</span></div>
+      <div class="opt-check-row"><input class="opt-check" type="checkbox" checked/><span class="opt-label">Show YouTube chapter titles</span></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Watch Time &amp; Alerts</div>
+      <div class="opt-check-row"><input class="opt-check" type="checkbox" checked/><span class="opt-label">Track watch time</span></div>
+      <div class="opt-row">
+        <div class="opt-label">Daily limit (minutes, 0 = off)</div>
+        <input class="opt-input" value="225"/>
+      </div>
+      <div class="opt-row">
+        <div class="opt-label">Break reminder (minutes, 0 = off)</div>
+        <input class="opt-input" value="60"/>
+      </div>
+      <div class="opt-check-row"><input class="opt-check" type="checkbox" checked/><span class="opt-label">Notify when video ends</span></div>
+    </div>
+
+    <div style="display:flex;gap:8px"><button class="save-btn">Save Display</button><button class="save-btn">Save Alerts</button></div>
+  </div>
+</div>
+
+<div class="right">
+  <h2>Every detail, fully configurable</h2>
+  <p>Tweak prefixes, timer mode, break reminders, and per-site rules from a single Options page.</p>
+  <div class="feature-list">
+    <div class="feat">
+      <div class="feat-icon">🎛</div>
+      <div class="feat-body">
+        <div class="feat-title">VOD mode: Countdown or Elapsed</div>
+        <div class="feat-desc">Choose whether the tab title shows time remaining or time watched</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🔔</div>
+      <div class="feat-body">
+        <div class="feat-title">Break reminder</div>
+        <div class="feat-desc">Get a browser notification after N continuous minutes of watching</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">⏰</div>
+      <div class="feat-body">
+        <div class="feat-title">Daily limit</div>
+        <div class="feat-desc">Set a minute threshold — a warning bar appears in the popup when exceeded</div>
+      </div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">✏️</div>
+      <div class="feat-body">
+        <div class="feat-title">Custom prefixes & separator</div>
+        <div class="feat-desc">Change the emoji or text shown before the timer and the separator between timer and title</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
