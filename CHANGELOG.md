@@ -2,6 +2,15 @@
 All notable changes to this project will be documented in this file.
 Format inspired by Keep a Changelog. Versioning: SemVer.
 
+## 2.0.3 — 2026-05-28
+### Fixed
+- **Break reminder now requires truly continuous watching:** the continuous-watch timer resets to zero on any pause; previously it accumulated through pauses, causing the reminder to fire too soon after resuming.
+- **Watch-time flush on page unload is now reliable:** replaced the async `reportWatchTime()` call in the `beforeunload` handler with a synchronous fire-and-forget that resets the accumulator eagerly before the page can unload.
+- **Overlay checkbox now reflects actual state on popup open:** the "Show page overlay" checkbox is initialised from `chrome.storage.sync` settings; previously it was always unchecked regardless of the stored preference.
+
+### Notes
+- No new permissions. No analytics.
+
 ## 2.0.2 — 2026-05-28
 ### Fixed
 - **Overlay on load:** overlay now correctly shows on page load when "Show overlay by default" is enabled; previously `computeEnabledFlags()` was not called before the overlay visibility check in `loadSettings()`.

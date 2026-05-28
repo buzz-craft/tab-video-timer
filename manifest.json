@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Tab Video Timer",
   "short_name": "Video Timer",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Tab title timers, watch-time stats, break reminders, and per-page video controls for VOD and live streams.",
   "icons": {
     "16": "icon16.png",

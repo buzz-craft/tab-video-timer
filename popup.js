@@ -275,10 +275,13 @@
   // -------------------------------------------------------------------------
   // Overlay visibility
   // -------------------------------------------------------------------------
-  async function loadOverlayState(tabId) {
-    // We'll try to read from content script state via GET_VIDEO_STATE
-    // The overlay checkbox just sends SET_OVERLAY_VISIBLE on change
-    // Initialize to unchecked; we'll update after first GET_VIDEO_STATE
+  async function loadOverlayState() {
+    const el = $("overlayVisible");
+    if (!el) return;
+    try {
+      const { settings = {} } = await chrome.storage.sync.get("settings");
+      el.checked = !!settings.showOverlay;
+    } catch {}
   }
 
   const overlayEl = $("overlayVisible");
@@ -666,6 +669,8 @@
     loadFinishedForSite(),
     // Mute label
     initMuteLabel(tab.id),
+    // Overlay checkbox
+    loadOverlayState(),
   ]);
 
   // Refresh mute label slightly after load (media may not be settled immediately)
