@@ -336,7 +336,8 @@ if (window.top === window.self) {
     }
     function onWatchPaused() {
       if (watchSegmentStart) { watchAccumSecs += (nowMs() - watchSegmentStart) / 1000; watchSegmentStart = null; }
-      if (continuousSegStart) { continuousWatchSecs += (nowMs() - continuousSegStart) / 1000; continuousSegStart = null; }
+      // reset continuous counter on any pause — break reminder fires after uninterrupted watching only
+      continuousWatchSecs = 0; continuousSegStart = null;
     }
     function getContinuousSecs() { return continuousWatchSecs + (continuousSegStart ? (nowMs() - continuousSegStart) / 1000 : 0); }
     async function reportWatchTime() {
@@ -347,6 +348,14 @@ if (window.top === window.self) {
         await chrome.runtime.sendMessage({ type: "WATCH_TIME_UPDATE", site: canonicalHost(location.hostname), seconds: Math.floor(secs) });
         watchAccumSecs = 0; if (watchSegmentStart) watchSegmentStart = nowMs();
       } catch {}
+    }
+    function flushWatchTimeSync() {
+      if (!settings.trackWatchTime) return;
+      onWatchPaused();
+      const secs = Math.floor(watchAccumSecs);
+      if (secs < 5) return;
+      watchAccumSecs = 0;
+      chrome.runtime.sendMessage({ type: "WATCH_TIME_UPDATE", site: canonicalHost(location.hostname), seconds: secs }).catch(() => {});
     }
     function checkBreakReminder() {
       const mins = settings.breakReminderMins || 0; if (!mins || breakReminderFired) return;
@@ -705,7 +714,7 @@ if (window.top === window.self) {
     // ─── INIT ─────────────────────────────────────────────────────────────────
     (async () => { await loadSettings(); startObservers(); startLoop(); })();
     window.addEventListener("beforeunload", () => {
-      onWatchPaused(); reportWatchTime();
+      flushWatchTimeSync();
       try { hideGuardStop(); } catch {}
     });
 
