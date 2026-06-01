@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file.
 Format inspired by Keep a Changelog. Versioning: SemVer.
 
+## 2.0.4 — 2026-06-01
+### Fixed
+- **Break reminder can now fire more than once per page session:** `breakReminderFired` is reset when playback pauses alongside the continuous-watch timer, so pausing and resuming allows the reminder to fire again after another N minutes of uninterrupted watching.
+- **Video picker selection resets on navigation:** `selectedVideoIndex` is now cleared to 0 when the URL changes, preventing a pinned index from carrying over to a new page where it may not exist or may select the wrong video.
+
+### Notes
+- No new permissions. No analytics.
+
 ## 2.0.3 — 2026-05-28
 ### Fixed
 - **Break reminder now requires truly continuous watching:** the continuous-watch timer resets to zero on any pause; previously it accumulated through pauses, causing the reminder to fire too soon after resuming.

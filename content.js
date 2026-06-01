@@ -312,7 +312,7 @@ if (window.top === window.self) {
       if (flushSecs >= 5) {
         chrome.runtime.sendMessage({ type: "WATCH_TIME_UPDATE", site: canonicalHost(location.hostname), seconds: flushSecs }).catch(() => {});
       }
-      watchAccumSecs = 0; continuousWatchSecs = 0; continuousSegStart = null; breakReminderFired = false;
+      watchAccumSecs = 0; selectedVideoIndex = 0; continuousWatchSecs = 0; continuousSegStart = null; breakReminderFired = false;
     }
 
     // ─── ENABLEMENT ──────────────────────────────────────────────────────────
@@ -336,8 +336,7 @@ if (window.top === window.self) {
     }
     function onWatchPaused() {
       if (watchSegmentStart) { watchAccumSecs += (nowMs() - watchSegmentStart) / 1000; watchSegmentStart = null; }
-      // reset continuous counter on any pause — break reminder fires after uninterrupted watching only
-      continuousWatchSecs = 0; continuousSegStart = null;
+      continuousWatchSecs = 0; continuousSegStart = null; breakReminderFired = false;
     }
     function getContinuousSecs() { return continuousWatchSecs + (continuousSegStart ? (nowMs() - continuousSegStart) / 1000 : 0); }
     async function reportWatchTime() {
