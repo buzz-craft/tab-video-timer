@@ -2,6 +2,18 @@
 All notable changes to this project will be documented in this file.
 Format inspired by Keep a Changelog. Versioning: SemVer.
 
+## 2.0.5 — 2026-06-01
+### Fixed
+- **Enable/disable button now reflects actual timer state:** the popup button previously showed "Enable timer" whenever no local override was set, even if the timer was actively running via site settings. It now shows the correct label based on the effective enabled state.
+- **Enable/disable toggle now sends the correct value:** clicking the button now toggles from the effective state rather than the (possibly stale) label state, so the first click always does what the label says.
+- **Custom separator no longer breaks title stripping:** `stripDecor()` now builds its pattern from the current `settings.separator` rather than a hardcoded ` • `. On non-YouTube/Twitch sites with a custom separator, the decoration prefix was not stripped from `document.title`, causing it to accumulate on every tick.
+- **`stripDecor` now also handles `%` progress and rate badge in the title** (e.g. `⏳ 14:32 (67%) @1.5× • …`).
+- **Manifest `action.default_icon`:** corrected the size key from `"32"` to `"48"` so the 48 × 48 image is served at the right density instead of being scaled from the wrong slot.
+- **Options page markup:** replaced two invalid `<form-content>` custom elements with `<div>` for valid HTML.
+
+### Notes
+- No new permissions. No analytics.
+
 ## 2.0.4 — 2026-06-01
 ### Fixed
 - **Break reminder can now fire more than once per page session:** `breakReminderFired` is reset when playback pauses alongside the continuous-watch timer, so pausing and resuming allows the reminder to fire again after another N minutes of uninterrupted watching.

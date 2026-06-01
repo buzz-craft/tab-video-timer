@@ -166,8 +166,7 @@
       const res = await chrome.tabs.sendMessage(tabId, { type: "GET_LOCAL_ENABLED" });
       const override = res?.override ?? null;
       const effective = !!res?.effective;
-      const enabledForLabel = override === null ? false : !!override;
-      return { ok: true, enabledForLabel, override, effective };
+      return { ok: true, enabledForLabel: effective, override, effective };
     } catch {
       return { ok: false, enabledForLabel: false, override: null, effective: false };
     }
@@ -195,7 +194,7 @@
     toggleSiteBtn.addEventListener("click", async () => {
       if (!tab?.id) return;
       const current = await queryTabEnable(tab.id);
-      const next = !current.enabledForLabel;
+      const next = !current.effective;
       await setTabEnable(tab.id, next);
       setEnableButtonUI(next);
     });

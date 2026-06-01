@@ -103,8 +103,16 @@ if (window.top === window.self) {
     // ─── UTILS ───────────────────────────────────────────────────────────────
     const clamp  = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
     const nowMs  = () => Date.now();
-    const DECOR_RE = /^(?:[⏳⏸]️?\s+\d{1,2}:\d{2}(?::\d{2})?\s+•\s+|\u{1F534}\s+LIVE\s+\d{1,2}:\d{2}(?::\d{2})?\s+•\s+|✓\s+Finished\s+•\s+)/u;
-    const stripDecor = (t) => (t || "").replace(DECOR_RE, "");
+    const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    function stripDecor(t) {
+      const sep = escRe(settings?.separator ?? " • ");
+      const re = new RegExp(
+        "^(?:[⏳⏸]️?\\s+\\d{1,2}:\\d{2}(?::\\d{2})?(?:\\s+\\([0-9]+%\\))?(?:\\s+@[\\d.]+×)?" + sep +
+        "|\\u{1F534}\\S*\\s+\\d{1,2}:\\d{2}(?::\\d{2})?" + sep +
+        "|✓\\s+Finished" + sep + ")", "u"
+      );
+      return (t || "").replace(re, "");
+    }
 
     function fmtHMS(totalSeconds) {
       totalSeconds = Math.max(0, Math.floor(totalSeconds));
