@@ -89,6 +89,8 @@
       target: { tabId },
       func: () => {
         const media = Array.from(document.querySelectorAll("video,audio"));
+        if (media.length === 0) return { muted: false };
+
         const anyAudible = media.some((v) => !v.muted && v.volume > 0);
         const wantMute = anyAudible;
 
@@ -112,10 +114,7 @@
         for (const v of media) {
           try {
             v.muted = wantMute;
-            if (!wantMute) {
-              if (v.volume === 0) v.volume = 0.5;
-              if (v.paused && v.readyState >= 2) v.play().catch(() => {});
-            }
+            if (!wantMute && v.volume === 0) v.volume = 0.5;
           } catch {}
         }
 
@@ -463,6 +462,7 @@
       item.className = "video-item" + (v.index === selectedIndex ? " selected" : "");
       item.setAttribute("role", "button");
       item.setAttribute("tabindex", "0");
+      item.dataset.videoIndex = v.index;
 
       const idxSpan = document.createElement("span");
       idxSpan.className = "vi-index";
@@ -490,9 +490,8 @@
       const select = async () => {
         try {
           await chrome.tabs.sendMessage(tabId, { type: "SELECT_VIDEO", index: v.index });
-          // Re-render selection state immediately
-          el.querySelectorAll(".video-item").forEach((child, i) => {
-            child.classList.toggle("selected", i === v.index);
+          el.querySelectorAll(".video-item").forEach((child) => {
+            child.classList.toggle("selected", Number(child.dataset.videoIndex) === v.index);
           });
         } catch {}
       };

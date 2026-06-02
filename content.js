@@ -94,6 +94,9 @@ if (window.top === window.self) {
     let overlayEl      = null;
     let overlayVisible = false;
 
+    // Keep-playing: timestamp of the last time the tab became hidden
+    let tabHiddenAt = 0;
+
     // Hide guard
     let hideGuardActive = false;
     let hideBaseTitle   = "";
@@ -380,6 +383,10 @@ if (window.top === window.self) {
       });
       media.addEventListener("pause", () => {
         if (!settings.keepPlayingWhenInactive || !document.hidden || media.ended) return;
+        // Only auto-resume if the pause occurred within 600 ms of the tab becoming hidden
+        // (site-triggered pause). Pauses initiated by the user while the tab is in the
+        // background arrive long after tabHiddenAt and are left alone.
+        if (nowMs() - tabHiddenAt > 600) return;
         setTimeout(() => {
           if (media.paused && !media.ended && document.hidden) media.play().catch(() => {});
         }, 100);
@@ -485,7 +492,7 @@ if (window.top === window.self) {
       if (hide && hidden) hideGuardStart();
       else if (hideGuardActive) { hideGuardStop(); setTimeout(() => { try { tick(); } catch {} }, 0); }
     }
-    document.addEventListener("visibilitychange", () => maybeToggleHideGuard(), { capture: true });
+    document.addEventListener("visibilitychange", () => { if (document.hidden) tabHiddenAt = nowMs(); maybeToggleHideGuard(); }, { capture: true });
     window.addEventListener("pagehide",   () => maybeToggleHideGuard(), { capture: true });
     window.addEventListener("pageshow",   () => maybeToggleHideGuard(), { capture: true });
     window.addEventListener("blur",       () => maybeToggleHideGuard(), { capture: true });
@@ -500,7 +507,7 @@ if (window.top === window.self) {
       const hiddenPolicy = currentHideInactiveSetting() && !visible;
       const effectiveEnabled = enabledForHost && !hiddenPolicy;
 
-      if (!effectiveEnabled) { hideGuardStart(); return; }
+      if (!effectiveEnabled) { if (watchSegmentStart) onWatchPaused(); hideGuardStart(); return; }
       else if (hideGuardActive) hideGuardStop();
 
       if (isTwitch()) {
@@ -655,7 +662,7 @@ if (window.top === window.self) {
 
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== "sync") return;
-      if (changes.settings?.newValue) { const s = changes.settings.newValue || {}; settings = { ...DEFAULTS, ...s }; }
+      if (changes.settings?.newValue) { const s = changes.settings.newValue || {}; settings = { ...DEFAULTS, ...s }; computeEnabledFlags(); if (enabledForHost) toggleOverlay(!!settings.showOverlay); }
       if (changes.sites?.newValue) { const r = changes.sites.newValue || {}; sitesRaw = r; sitesCanon = {}; for (const [k,v] of Object.entries(r)) sitesCanon[canonicalHost(k)] = v; }
       startLoop();
     });

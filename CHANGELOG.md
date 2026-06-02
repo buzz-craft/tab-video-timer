@@ -159,6 +159,12 @@ Format inspired by Keep a Changelog. Versioning: SemVer.
 ### Fixed
 - **False LIVE badge on popup open:** `isStrongLive()` treated `NaN` duration (video element still loading metadata) as a live stream. Changed check to `dur === Infinity` so the badge only appears for genuine live streams.
 - **Mute button now works:** `tryContentScriptToggle` was running before `forcePageToggle`, muting the media and causing `forcePageToggle` to immediately unmute it again. Removed the redundant first call.
+- **Mute button shows wrong state when no top-frame media exists:** `forcePageToggle` returned `{ muted: true }` when the media array was empty (e.g. video only in an iframe), flipping the button label to "Unmute" incorrectly. Now returns `{ muted: false }` when nothing is found.
+- **Unmuting no longer auto-resumes paused videos:** `forcePageToggle` was calling `v.play()` on paused-but-ready elements when unmuting — unexpected side-effect removed.
+- **Watch segment not flushed when timer is disabled mid-session:** `tick()` returned early without calling `onWatchPaused()` when the timer was disabled, leaving `watchSegmentStart` set. On the next navigation the entire elapsed wall-clock time since the segment began was flushed, overcounting watch time. `onWatchPaused()` is now called before the early return.
+- **Overlay setting change requires page reload:** enabling the overlay in Options had no effect in already-open tabs because `chrome.storage.onChanged` did not call `toggleOverlay()`. Now applies immediately.
+- **Keep-playing no longer fights user-initiated pauses:** the pause listener now only auto-resumes if the pause occurred within 600 ms of the tab becoming hidden (site-triggered), ignoring deliberate user pauses that arrive later.
+- **Video picker selection highlight uses index not DOM position:** the immediate visual update after clicking a video item now matches by `data-video-index` attribute instead of forEach loop counter, fixing a latent mismatch if video indices were ever non-contiguous.
 
 ### Notes
 - No new permissions. No analytics.
