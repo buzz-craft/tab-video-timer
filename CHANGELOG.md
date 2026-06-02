@@ -153,15 +153,11 @@ Format inspired by Keep a Changelog. Versioning: SemVer.
 - No new permissions. No analytics.
 
 ## 2.0.6 — 2026-06-02
-### Fixed
-- **False LIVE badge on popup open:** `isStrongLive()` treated `NaN` duration (video element still loading metadata) as a live stream, because `!Number.isFinite(NaN)` is `true`. Changed the check to `dur === Infinity` — `NaN` means "loading", `Infinity` means "live". The LIVE badge now only appears for genuinely live streams.
-
-### Notes
-- No new permissions. No analytics.
-
-## 2.0.7 — 2026-06-02
 ### Added
 - **Keep video playing when tab is inactive:** new option in Options → Playback Display. When enabled, if a site pauses the video on tab switch the extension immediately resumes playback. Works by intercepting the `pause` event on the video element and re-playing within 100 ms when the tab is hidden.
+
+### Fixed
+- **False LIVE badge on popup open:** `isStrongLive()` treated `NaN` duration (video element still loading metadata) as a live stream, because `!Number.isFinite(NaN)` is `true`. Changed the check to `dur === Infinity` — `NaN` means "loading", `Infinity` means "live". The LIVE badge now only appears for genuinely live streams.
 
 ### Notes
 - No new permissions. No analytics.
