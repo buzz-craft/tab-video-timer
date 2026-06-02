@@ -325,7 +325,7 @@ if (window.top === window.self) {
       if (flushSecs >= 5) {
         chrome.runtime.sendMessage({ type: "WATCH_TIME_UPDATE", site: canonicalHost(location.hostname), seconds: flushSecs }).catch(() => {});
       }
-      watchAccumSecs = 0; selectedVideoIndex = 0; continuousWatchSecs = 0; continuousSegStart = null; breakReminderFired = false; stopKeepPlayingGuard();
+      watchAccumSecs = 0; selectedVideoIndex = 0; continuousWatchSecs = 0; continuousSegStart = null; breakReminderFired = false; stopKeepPlayingGuard(); document.documentElement.removeAttribute("data-tvt-keep-playing");
     }
 
     // ─── ENABLEMENT ──────────────────────────────────────────────────────────
@@ -503,9 +503,13 @@ if (window.top === window.self) {
         if (settings.keepPlayingWhenInactive) {
           const all = Array.from(document.querySelectorAll("video,audio"));
           const tracked = all[selectedVideoIndex] || null;
-          if (tracked && !tracked.paused && !tracked.ended) startKeepPlayingGuard(tracked);
+          if (tracked && !tracked.paused && !tracked.ended) {
+            document.documentElement.setAttribute("data-tvt-keep-playing", "1");
+            startKeepPlayingGuard(tracked);
+          }
         }
       } else {
+        document.documentElement.removeAttribute("data-tvt-keep-playing");
         stopKeepPlayingGuard();
       }
       maybeToggleHideGuard();
@@ -688,7 +692,7 @@ if (window.top === window.self) {
 
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== "sync") return;
-      if (changes.settings?.newValue) { const s = changes.settings.newValue || {}; const prevShow = settings.showOverlay; const prevEnabled = enabledForHost; settings = { ...DEFAULTS, ...s }; computeEnabledFlags(); const showNow = settings.showOverlay && enabledForHost; const showBefore = prevShow && prevEnabled; if (showNow !== showBefore) toggleOverlay(showNow); }
+      if (changes.settings?.newValue) { const s = changes.settings.newValue || {}; const prevShow = settings.showOverlay; const prevEnabled = enabledForHost; settings = { ...DEFAULTS, ...s }; computeEnabledFlags(); const showNow = settings.showOverlay && enabledForHost; const showBefore = prevShow && prevEnabled; if (showNow !== showBefore) toggleOverlay(showNow); if (!settings.keepPlayingWhenInactive) { document.documentElement.removeAttribute("data-tvt-keep-playing"); stopKeepPlayingGuard(); } }
       if (changes.sites?.newValue) { const r = changes.sites.newValue || {}; sitesRaw = r; sitesCanon = {}; for (const [k,v] of Object.entries(r)) sitesCanon[canonicalHost(k)] = v; computeEnabledFlags(); }
       startLoop();
     });
