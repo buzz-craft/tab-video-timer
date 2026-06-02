@@ -94,7 +94,7 @@ if (window.top === window.self) {
     let overlayEl      = null;
     let overlayVisible = false;
 
-    let tabHiddenAt = 0;
+
 
     // Hide guard
     let hideGuardActive = false;
@@ -383,7 +383,6 @@ if (window.top === window.self) {
       });
       media.addEventListener("pause", () => {
         if (!settings.keepPlayingWhenInactive || !document.hidden || media.ended) return;
-        if (nowMs() - tabHiddenAt > 600) return;
         setTimeout(() => {
           if (media.paused && !media.ended && document.hidden) media.play().catch(() => {});
         }, 100);
@@ -490,7 +489,7 @@ if (window.top === window.self) {
       if (hide && hidden) hideGuardStart();
       else if (hideGuardActive) { hideGuardStop(); setTimeout(() => { try { tick(); } catch {} }, 0); }
     }
-    document.addEventListener("visibilitychange", () => { if (document.hidden) tabHiddenAt = nowMs(); maybeToggleHideGuard(); }, { capture: true });
+    document.addEventListener("visibilitychange", () => { maybeToggleHideGuard(); }, { capture: true });
     window.addEventListener("pagehide",   () => maybeToggleHideGuard(), { capture: true });
     window.addEventListener("pageshow",   () => maybeToggleHideGuard(), { capture: true });
     window.addEventListener("blur",       () => maybeToggleHideGuard(), { capture: true });
