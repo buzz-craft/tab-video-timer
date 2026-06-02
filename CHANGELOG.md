@@ -152,5 +152,12 @@ Format inspired by Keep a Changelog. Versioning: SemVer.
 ### Notes
 - No new permissions. No analytics.
 
+## 2.0.6 — 2026-06-02
+### Fixed
+- **False LIVE badge on popup open:** `isStrongLive()` treated `NaN` duration (video element still loading metadata) as a live stream, because `!Number.isFinite(NaN)` is `true`. Changed the check to `dur === Infinity` — `NaN` means "loading", `Infinity` means "live". The LIVE badge now only appears for genuinely live streams.
+
+### Notes
+- No new permissions. No analytics.
+
 ## Unreleased
 - (add upcoming changes here)

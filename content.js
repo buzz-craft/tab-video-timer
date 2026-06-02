@@ -298,7 +298,7 @@ if (window.top === window.self) {
     }
     function isStrongLive(media) {
       const dur = Number(media?.duration);
-      const durationInfinite = media && !Number.isFinite(dur);
+      const durationInfinite = media && dur === Infinity;
       if (isYouTube()) { const { liveNow } = getYouTubeLiveInfo(); return durationInfinite || isYouTubeLiveByBadge() || liveNow; }
       return durationInfinite;
     }
