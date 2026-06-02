@@ -349,7 +349,7 @@
     const fillEl       = $("progressFill");
     const elapsedEl    = $("timeElapsed");
     const durEl        = $("timeDuration");
-    const badgeEl      = $("liveBadge");
+
     const pickerCard   = $("videoPickerCard");
     const videoListEl  = $("videoList");
 
@@ -365,7 +365,6 @@
       if (chapterEl)   chapterEl.hidden   = true;
       if (tvEl)        tvEl.hidden        = true;
       if (pwEl)        pwEl.hidden        = true;
-      if (badgeEl)     badgeEl.hidden     = true;
       if (pickerCard)  pickerCard.hidden  = true;
       return;
     }
@@ -393,7 +392,6 @@
 
     // --- Live stream ---
     if (state.isLive) {
-      if (badgeEl) badgeEl.hidden = false;
       iconEl.textContent = "🔴";
       textEl.textContent = state.isPlaying ? "Live · Playing" : "Live · Paused";
       if (tvEl) {
@@ -407,7 +405,6 @@
       if (pwEl) pwEl.hidden = true;
     } else {
       // --- VOD ---
-      if (badgeEl) badgeEl.hidden = true;
       iconEl.textContent = state.isPlaying ? "▶" : "⏸";
       textEl.textContent = state.isPlaying ? "Playing" : "Paused";
 
