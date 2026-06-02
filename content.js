@@ -94,8 +94,9 @@ if (window.top === window.self) {
     let overlayEl      = null;
     let overlayVisible = false;
 
-    // Keep-playing: timestamp of the last time the tab became hidden
+    // Keep-playing guard
     let tabHiddenAt = 0;
+    let keepPlayingGuardTimer = null;
 
     // Hide guard
     let hideGuardActive = false;
@@ -324,7 +325,7 @@ if (window.top === window.self) {
       if (flushSecs >= 5) {
         chrome.runtime.sendMessage({ type: "WATCH_TIME_UPDATE", site: canonicalHost(location.hostname), seconds: flushSecs }).catch(() => {});
       }
-      watchAccumSecs = 0; selectedVideoIndex = 0; continuousWatchSecs = 0; continuousSegStart = null; breakReminderFired = false;
+      watchAccumSecs = 0; selectedVideoIndex = 0; continuousWatchSecs = 0; continuousSegStart = null; breakReminderFired = false; stopKeepPlayingGuard();
     }
 
     // ─── ENABLEMENT ──────────────────────────────────────────────────────────
@@ -374,6 +375,18 @@ if (window.top === window.self) {
       if (getContinuousSecs() >= mins * 60) { breakReminderFired = true; try { chrome.runtime.sendMessage({ type: "BREAK_REMINDER", seconds: Math.floor(getContinuousSecs()) }); } catch {} }
     }
 
+    // ─── KEEP-PLAYING GUARD ───────────────────────────────────────────────────
+    function stopKeepPlayingGuard() {
+      if (keepPlayingGuardTimer) { clearInterval(keepPlayingGuardTimer); keepPlayingGuardTimer = null; }
+    }
+    function startKeepPlayingGuard(media) {
+      stopKeepPlayingGuard();
+      keepPlayingGuardTimer = setInterval(() => {
+        if (!document.hidden || !settings.keepPlayingWhenInactive) { stopKeepPlayingGuard(); return; }
+        if (media.paused && !media.ended && document.body.contains(media)) media.play().catch(() => {});
+      }, 300);
+    }
+
     // ─── VIDEO LISTENERS (ended, watch-time) ─────────────────────────────────
     function attachVideoListeners(media) {
       if (!media || listenedVideos.has(media)) return;
@@ -381,18 +394,6 @@ if (window.top === window.self) {
       media.addEventListener("ended", () => {
         onWatchPaused(); reportWatchTime();
         if (settings.endNotification) try { chrome.runtime.sendMessage({ type: "VIDEO_ENDED", title: currentBaseTitle() }); } catch {}
-      });
-      media.addEventListener("pause", () => {
-        if (!settings.keepPlayingWhenInactive || !document.hidden || media.ended) return;
-        const all = Array.from(document.querySelectorAll("video,audio"));
-        if (all[selectedVideoIndex] !== media) return;
-        // Only auto-resume if the pause occurred within 600 ms of the tab becoming hidden
-        // (site-triggered pause). Pauses initiated by the user while the tab is in the
-        // background arrive long after tabHiddenAt and are left alone.
-        if (nowMs() - tabHiddenAt > 600) return;
-        setTimeout(() => {
-          if (media.paused && !media.ended && document.hidden) media.play().catch(() => {});
-        }, 100);
       });
     }
 
@@ -496,7 +497,19 @@ if (window.top === window.self) {
       if (hide && hidden) hideGuardStart();
       else if (hideGuardActive) { hideGuardStop(); setTimeout(() => { try { tick(); } catch {} }, 0); }
     }
-    document.addEventListener("visibilitychange", () => { if (document.hidden) tabHiddenAt = nowMs(); maybeToggleHideGuard(); }, { capture: true });
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        tabHiddenAt = nowMs();
+        if (settings.keepPlayingWhenInactive) {
+          const all = Array.from(document.querySelectorAll("video,audio"));
+          const tracked = all[selectedVideoIndex] || null;
+          if (tracked && !tracked.paused && !tracked.ended) startKeepPlayingGuard(tracked);
+        }
+      } else {
+        stopKeepPlayingGuard();
+      }
+      maybeToggleHideGuard();
+    }, { capture: true });
     window.addEventListener("pagehide",   () => maybeToggleHideGuard(), { capture: true });
     window.addEventListener("pageshow",   () => maybeToggleHideGuard(), { capture: true });
     window.addEventListener("blur",       () => maybeToggleHideGuard(), { capture: true });
