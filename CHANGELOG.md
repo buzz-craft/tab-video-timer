@@ -154,20 +154,11 @@ Format inspired by Keep a Changelog. Versioning: SemVer.
 
 ## 2.0.6 — 2026-06-02
 ### Added
-- **Keep video playing when tab is inactive:** new option in Options → Playback Display. When enabled, if a site pauses the video on tab switch the extension immediately resumes playback. Works by intercepting the `pause` event on the video element and re-playing within 100 ms when the tab is hidden.
+- **Keep video playing when tab is inactive:** new option in Options → Playback Display and in the popup controls. When enabled, if a site pauses the video on tab switch the extension immediately resumes playback within 100 ms.
 
 ### Fixed
-- **False LIVE badge on popup open:** `isStrongLive()` treated `NaN` duration (video element still loading metadata) as a live stream, because `!Number.isFinite(NaN)` is `true`. Changed the check to `dur === Infinity` — `NaN` means "loading", `Infinity` means "live". The LIVE badge now only appears for genuinely live streams.
-
-### Notes
-- No new permissions. No analytics.
-
-## 2.0.7 — 2026-06-02
-### Added
-- **Keep playing toggle in popup:** "Keep playing when tab inactive" checkbox now appears directly in the popup controls card (alongside hide-timer and overlay toggles) in addition to being available in Options.
-
-### Fixed
-- **Mute button now works:** clicking Mute/Unmute was a no-op because `tryContentScriptToggle` (which muted via the content script) ran before `forcePageToggle` (which evaluated mute state and promptly reversed it). Removed the redundant first call so `forcePageToggle` runs alone and correctly toggles all media on the page.
+- **False LIVE badge on popup open:** `isStrongLive()` treated `NaN` duration (video element still loading metadata) as a live stream. Changed check to `dur === Infinity` so the badge only appears for genuine live streams.
+- **Mute button now works:** `tryContentScriptToggle` was running before `forcePageToggle`, muting the media and causing `forcePageToggle` to immediately unmute it again. Removed the redundant first call.
 
 ### Notes
 - No new permissions. No analytics.

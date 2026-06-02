@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Tab Video Timer",
   "short_name": "Video Timer",
-  "version": "2.0.7",
+  "version": "2.0.6",
   "description": "Adds a countdown timer to your tab title showing time remaining on any video.",
   "icons": {
     "16": "icon16.png",
