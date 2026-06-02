@@ -152,7 +152,6 @@
   if (muteBtn) {
     muteBtn.addEventListener("click", async () => {
       if (!tab?.id) return;
-      await tryContentScriptToggle(tab.id);
       const res = await forcePageToggle(tab.id);
       updateMuteLabel(res?.muted ?? false);
     });
@@ -292,6 +291,30 @@
           type: "SET_OVERLAY_VISIBLE",
           visible: !!overlayEl.checked,
         });
+        try { await chrome.tabs.sendMessage(tab.id, { type: "APPLY_SETTINGS" }); } catch {}
+      } catch {}
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Keep playing when inactive (global setting)
+  // -------------------------------------------------------------------------
+  async function loadKeepPlayingState() {
+    const el = $("keepPlayingWhenInactive");
+    if (!el) return;
+    try {
+      const { settings = {} } = await chrome.storage.sync.get("settings");
+      el.checked = !!settings.keepPlayingWhenInactive;
+    } catch {}
+  }
+
+  const keepPlayingEl = $("keepPlayingWhenInactive");
+  if (keepPlayingEl) {
+    keepPlayingEl.addEventListener("change", async () => {
+      try {
+        const { settings = {} } = await chrome.storage.sync.get("settings");
+        const updated = { ...settings, keepPlayingWhenInactive: !!keepPlayingEl.checked };
+        await chrome.storage.sync.set({ settings: updated });
         try { await chrome.tabs.sendMessage(tab.id, { type: "APPLY_SETTINGS" }); } catch {}
       } catch {}
     });
@@ -670,6 +693,8 @@
     initMuteLabel(tab.id),
     // Overlay checkbox
     loadOverlayState(),
+    // Keep playing
+    loadKeepPlayingState(),
   ]);
 
   // Refresh mute label slightly after load (media may not be settled immediately)

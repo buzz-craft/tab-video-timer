@@ -162,5 +162,15 @@ Format inspired by Keep a Changelog. Versioning: SemVer.
 ### Notes
 - No new permissions. No analytics.
 
+## 2.0.7 — 2026-06-02
+### Added
+- **Keep playing toggle in popup:** "Keep playing when tab inactive" checkbox now appears directly in the popup controls card (alongside hide-timer and overlay toggles) in addition to being available in Options.
+
+### Fixed
+- **Mute button now works:** clicking Mute/Unmute was a no-op because `tryContentScriptToggle` (which muted via the content script) ran before `forcePageToggle` (which evaluated mute state and promptly reversed it). Removed the redundant first call so `forcePageToggle` runs alone and correctly toggles all media on the page.
+
+### Notes
+- No new permissions. No analytics.
+
 ## Unreleased
 - (add upcoming changes here)
