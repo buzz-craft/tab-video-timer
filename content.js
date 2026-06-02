@@ -507,7 +507,16 @@ if (window.top === window.self) {
       const hiddenPolicy = currentHideInactiveSetting() && !visible;
       const effectiveEnabled = enabledForHost && !hiddenPolicy;
 
-      if (!effectiveEnabled) { if (watchSegmentStart) onWatchPaused(); hideGuardStart(); return; }
+      if (!effectiveEnabled) {
+        // Flush the active watch segment but don't reset the break-reminder state
+        // (the video may still be playing; only a real pause should clear that).
+        if (watchSegmentStart) { watchAccumSecs += (nowMs() - watchSegmentStart) / 1000; watchSegmentStart = null; }
+        // Only lock the title when the tab is actually hidden; leave it unlocked
+        // for visible-but-disabled pages so the site can manage its own title.
+        if (!visible) hideGuardStart();
+        else if (hideGuardActive) hideGuardStop();
+        return;
+      }
       else if (hideGuardActive) hideGuardStop();
 
       if (isTwitch()) {
@@ -662,7 +671,7 @@ if (window.top === window.self) {
 
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== "sync") return;
-      if (changes.settings?.newValue) { const s = changes.settings.newValue || {}; settings = { ...DEFAULTS, ...s }; computeEnabledFlags(); if (enabledForHost) toggleOverlay(!!settings.showOverlay); }
+      if (changes.settings?.newValue) { const s = changes.settings.newValue || {}; const prevShow = settings.showOverlay; settings = { ...DEFAULTS, ...s }; computeEnabledFlags(); if (settings.showOverlay !== prevShow && enabledForHost) toggleOverlay(!!settings.showOverlay); }
       if (changes.sites?.newValue) { const r = changes.sites.newValue || {}; sitesRaw = r; sitesCanon = {}; for (const [k,v] of Object.entries(r)) sitesCanon[canonicalHost(k)] = v; }
       startLoop();
     });

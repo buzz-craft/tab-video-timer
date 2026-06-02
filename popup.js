@@ -85,6 +85,7 @@
   }
 
   async function forcePageToggle(tabId) {
+    try {
     const [{ result }] = await chrome.scripting.executeScript({
       target: { tabId },
       func: () => {
@@ -122,7 +123,8 @@
         return { muted: !nowAudible };
       },
     });
-    return result;
+    return result ?? null;
+    } catch { return null; }
   }
 
   function updateMuteLabel(muted) {

@@ -165,6 +165,10 @@ Format inspired by Keep a Changelog. Versioning: SemVer.
 - **Overlay setting change requires page reload:** enabling the overlay in Options had no effect in already-open tabs because `chrome.storage.onChanged` did not call `toggleOverlay()`. Now applies immediately.
 - **Keep-playing no longer fights user-initiated pauses:** the pause listener now only auto-resumes if the pause occurred within 600 ms of the tab becoming hidden (site-triggered), ignoring deliberate user pauses that arrive later.
 - **Video picker selection highlight uses index not DOM position:** the immediate visual update after clicking a video item now matches by `data-video-index` attribute instead of forEach loop counter, fixing a latent mismatch if video indices were ever non-contiguous.
+- **Timer-disabled pages no longer freeze the site's own title:** `tick()` was calling `hideGuardStart()` unconditionally for any disabled page, starting a title-locking MutationObserver even when "hide timer when tab inactive" was off. Title locking now only activates when the tab is actually hidden.
+- **Tab switch no longer resets break-reminder countdown:** the watch-segment flush added to `tick()`'s early-return was calling `onWatchPaused()`, which also zeroed `continuousWatchSecs`. The early-return now only flushes the accumulator directly, leaving break-reminder state untouched.
+- **Overlay does not reopen after user closes it:** the `chrome.storage.onChanged` handler was calling `toggleOverlay(true)` on every settings change, reopening the overlay even if the user had dismissed it with ×. It now only calls `toggleOverlay` when `showOverlay` itself changes.
+- **Mute button no longer crashes on restricted pages:** `forcePageToggle` had no try/catch around `chrome.scripting.executeScript`, causing an unhandled rejection on `chrome://` or PDF tabs. Now returns `null` gracefully.
 
 ### Notes
 - No new permissions. No analytics.
