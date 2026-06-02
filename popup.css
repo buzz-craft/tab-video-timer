@@ -36,8 +36,8 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:13px/1.35
 
 /* ---- Header ---- */
 .row{display:flex;align-items:center;gap:8px}
-.header{justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:0}
-.title{font-size:14px;margin:0;font-weight:700}
+.header{justify-content:center;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:0}
+.title{font-size:14px;margin:0;font-weight:700;text-align:center;width:100%}
 .hostline{display:flex;align-items:center;gap:6px;margin-left:auto}
 .host{color:var(--fg-dim);font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .badge{display:inline-flex;align-items:center;justify-content:center;background:#ef4444;color:#fff;border-radius:999px;padding:2px 8px;font-weight:600;font-size:10px;letter-spacing:.4px}
