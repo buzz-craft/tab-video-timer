@@ -77,7 +77,14 @@ async function setMutedForAll(tabId, mute) {
 
 // ─── Watch-time storage ──────────────────────────────────────────────────────
 
-async function handleWatchTimeUpdate({ site, seconds }) {
+// Serialize all writes through a single promise chain to prevent lost-update
+// races when two tabs flush simultaneously (both read before either writes).
+let _watchTimeQueue = Promise.resolve();
+function handleWatchTimeUpdate({ site, seconds }) {
+  _watchTimeQueue = _watchTimeQueue.then(() => _writeWatchTime({ site, seconds }));
+  return _watchTimeQueue;
+}
+async function _writeWatchTime({ site, seconds }) {
   if (!seconds || seconds < 1) return { ok: true };
   const { watchTime = {} } = await chrome.storage.local.get("watchTime");
   const key = todayKey();

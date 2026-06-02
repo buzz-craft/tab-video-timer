@@ -353,11 +353,12 @@ if (window.top === window.self) {
     function getContinuousSecs() { return continuousWatchSecs + (continuousSegStart ? (nowMs() - continuousSegStart) / 1000 : 0); }
     async function reportWatchTime() {
       if (!settings.trackWatchTime) return;
-      let secs = watchAccumSecs + (watchSegmentStart ? (nowMs() - watchSegmentStart) / 1000 : 0);
-      if (secs < 5) return;
+      const snapshot = watchAccumSecs + (watchSegmentStart ? (nowMs() - watchSegmentStart) / 1000 : 0);
+      if (snapshot < 5) return;
+      watchAccumSecs = 0;
+      if (watchSegmentStart) watchSegmentStart = nowMs();
       try {
-        await chrome.runtime.sendMessage({ type: "WATCH_TIME_UPDATE", site: canonicalHost(location.hostname), seconds: Math.floor(secs) });
-        watchAccumSecs = 0; if (watchSegmentStart) watchSegmentStart = nowMs();
+        await chrome.runtime.sendMessage({ type: "WATCH_TIME_UPDATE", site: canonicalHost(location.hostname), seconds: Math.floor(snapshot) });
       } catch {}
     }
     function flushWatchTimeSync() {
@@ -383,6 +384,8 @@ if (window.top === window.self) {
       });
       media.addEventListener("pause", () => {
         if (!settings.keepPlayingWhenInactive || !document.hidden || media.ended) return;
+        const all = Array.from(document.querySelectorAll("video,audio"));
+        if (all[selectedVideoIndex] !== media) return;
         // Only auto-resume if the pause occurred within 600 ms of the tab becoming hidden
         // (site-triggered pause). Pauses initiated by the user while the tab is in the
         // background arrive long after tabHiddenAt and are left alone.
@@ -426,7 +429,8 @@ if (window.top === window.self) {
       });
     }
     function ensureOverlay() {
-      if (overlayEl) return;
+      if (overlayEl && document.body.contains(overlayEl)) return;
+      overlayEl = null;
       if (!document.getElementById("tvt-overlay-css")) {
         const s = document.createElement("style"); s.id = "tvt-overlay-css"; s.textContent = getOverlayCSS(); document.head.appendChild(s);
       }
@@ -671,8 +675,8 @@ if (window.top === window.self) {
 
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== "sync") return;
-      if (changes.settings?.newValue) { const s = changes.settings.newValue || {}; const prevShow = settings.showOverlay; settings = { ...DEFAULTS, ...s }; computeEnabledFlags(); if (settings.showOverlay !== prevShow && enabledForHost) toggleOverlay(!!settings.showOverlay); }
-      if (changes.sites?.newValue) { const r = changes.sites.newValue || {}; sitesRaw = r; sitesCanon = {}; for (const [k,v] of Object.entries(r)) sitesCanon[canonicalHost(k)] = v; }
+      if (changes.settings?.newValue) { const s = changes.settings.newValue || {}; const prevShow = settings.showOverlay; const prevEnabled = enabledForHost; settings = { ...DEFAULTS, ...s }; computeEnabledFlags(); const showNow = settings.showOverlay && enabledForHost; const showBefore = prevShow && prevEnabled; if (showNow !== showBefore) toggleOverlay(showNow); }
+      if (changes.sites?.newValue) { const r = changes.sites.newValue || {}; sitesRaw = r; sitesCanon = {}; for (const [k,v] of Object.entries(r)) sitesCanon[canonicalHost(k)] = v; computeEnabledFlags(); }
       startLoop();
     });
 
@@ -686,7 +690,7 @@ if (window.top === window.self) {
       }
       if (msg.type === "SET_LOCAL_ENABLED") {
         localEnabledOverride = typeof msg.enabled === "boolean" ? msg.enabled : null;
-        prevEffectiveEnabled = null; startLoop(); sendResponse?.({ ok: true, enabled: localEnabledOverride }); return;
+        computeEnabledFlags(); prevEffectiveEnabled = null; startLoop(); sendResponse?.({ ok: true, enabled: localEnabledOverride }); return;
       }
       if (msg.type === "GET_LOCAL_ENABLED") {
         computeEnabledFlags(); sendResponse?.({ override: localEnabledOverride, effective: enabledForHost }); return;

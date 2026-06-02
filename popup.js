@@ -138,14 +138,14 @@
 
   async function initMuteLabel(tabId) {
     try {
-      const [{ result }] = await chrome.scripting.executeScript({
+      const res = await chrome.scripting.executeScript({
         target: { tabId },
         func: () => {
           const media = Array.from(document.querySelectorAll("video,audio"));
           return { muted: !media.some((v) => !v.muted && v.volume > 0) };
         },
       });
-      updateMuteLabel(result?.muted ?? false);
+      updateMuteLabel(res?.[0]?.result?.muted ?? false);
     } catch {}
   }
 
