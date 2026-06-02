@@ -303,7 +303,7 @@ if (window.top === window.self) {
       const dur = Number(media?.duration);
       const durationInfinite = media && dur === Infinity;
       if (isYouTube()) { const { liveNow } = getYouTubeLiveInfo(); return durationInfinite || isYouTubeLiveByBadge() || liveNow; }
-      return durationInfinite && media.tagName === "VIDEO";
+      return durationInfinite && media.tagName === "VIDEO" && media.videoWidth > 0;
     }
     const looksLikeDvrHour = (dur) => Number.isFinite(dur) && dur >= 3500 && dur <= 3700;
     const inDvrQuarantine = () => isYouTubeWatch() && nowMs() < dvrQuarantineUntil;
