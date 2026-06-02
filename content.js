@@ -32,6 +32,7 @@ if (window.top === window.self) {
       trackWatchTime:       true,
       showOverlay:          false,
       overlayPosition:      "bottom-right",
+      keepPlayingWhenInactive: false,
     };
 
     // ─── HOST HELPERS ─────────────────────────────────────────────────────────
@@ -376,6 +377,12 @@ if (window.top === window.self) {
       media.addEventListener("ended", () => {
         onWatchPaused(); reportWatchTime();
         if (settings.endNotification) try { chrome.runtime.sendMessage({ type: "VIDEO_ENDED", title: currentBaseTitle() }); } catch {}
+      });
+      media.addEventListener("pause", () => {
+        if (!settings.keepPlayingWhenInactive || !document.hidden || media.ended) return;
+        setTimeout(() => {
+          if (media.paused && !media.ended && document.hidden) media.play().catch(() => {});
+        }, 100);
       });
     }
 

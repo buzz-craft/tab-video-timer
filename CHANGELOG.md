@@ -159,5 +159,12 @@ Format inspired by Keep a Changelog. Versioning: SemVer.
 ### Notes
 - No new permissions. No analytics.
 
+## 2.0.7 — 2026-06-02
+### Added
+- **Keep video playing when tab is inactive:** new option in Options → Playback Display. When enabled, if a site pauses the video on tab switch the extension immediately resumes playback. Works by intercepting the `pause` event on the video element and re-playing within 100 ms when the tab is hidden.
+
+### Notes
+- No new permissions. No analytics.
+
 ## Unreleased
 - (add upcoming changes here)

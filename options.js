@@ -26,6 +26,7 @@
     trackWatchTime: true,
     showOverlay: false,
     overlayPosition: 'bottom-right',
+    keepPlayingWhenInactive: false,
   };
 
   const $ = (id) => document.getElementById(id);
@@ -148,10 +149,11 @@
     $("separator").value   = settings.separator  ?? DEFAULTS.separator;
     $("showPercent").checked = !!settings.showPercent;
 
-    $("speedAwareCountdown").checked = settings.speedAwareCountdown ?? DEFAULTS.speedAwareCountdown;
-    $("showChapters").checked        = settings.showChapters        ?? DEFAULTS.showChapters;
-    $("showOverlay").checked         = settings.showOverlay         ?? DEFAULTS.showOverlay;
-    $("overlayPosition").value       = settings.overlayPosition     ?? DEFAULTS.overlayPosition;
+    $("speedAwareCountdown").checked     = settings.speedAwareCountdown     ?? DEFAULTS.speedAwareCountdown;
+    $("showChapters").checked            = settings.showChapters            ?? DEFAULTS.showChapters;
+    $("keepPlayingWhenInactive").checked = settings.keepPlayingWhenInactive ?? DEFAULTS.keepPlayingWhenInactive;
+    $("showOverlay").checked             = settings.showOverlay             ?? DEFAULTS.showOverlay;
+    $("overlayPosition").value           = settings.overlayPosition         ?? DEFAULTS.overlayPosition;
 
     $("trackWatchTime").checked      = settings.trackWatchTime      ?? DEFAULTS.trackWatchTime;
     $("endNotification").checked     = settings.endNotification     ?? DEFAULTS.endNotification;
@@ -189,11 +191,12 @@
       vodTimerMode: (document.querySelector('input[name="vodTimerMode"]:checked') || {}).value || 'countdown',
       showPercent:  $("showPercent").checked,
       separator:    $("separator").value !== undefined ? $("separator").value : ' • ',
-      speedAwareCountdown: $("speedAwareCountdown").checked,
-      showChapters:        $("showChapters").checked,
-      showOverlay:         $("showOverlay").checked,
-      overlayPosition:     $("overlayPosition").value || DEFAULTS.overlayPosition,
-      trackWatchTime:      $("trackWatchTime").checked,
+      speedAwareCountdown:     $("speedAwareCountdown").checked,
+      showChapters:            $("showChapters").checked,
+      keepPlayingWhenInactive: $("keepPlayingWhenInactive").checked,
+      showOverlay:             $("showOverlay").checked,
+      overlayPosition:         $("overlayPosition").value || DEFAULTS.overlayPosition,
+      trackWatchTime:          $("trackWatchTime").checked,
       endNotification:     $("endNotification").checked,
       breakReminderMins:   Math.max(0, Number($("breakReminderMins").value) || 0),
       dailyLimitMins:      Math.max(0, Number($("dailyLimitMins").value) || 0),
@@ -316,10 +319,11 @@
 
   async function onSavePlayback() {
     const patch = {
-      speedAwareCountdown: $("speedAwareCountdown").checked,
-      showChapters:        $("showChapters").checked,
-      showOverlay:         $("showOverlay").checked,
-      overlayPosition:     $("overlayPosition").value || DEFAULTS.overlayPosition,
+      speedAwareCountdown:     $("speedAwareCountdown").checked,
+      showChapters:            $("showChapters").checked,
+      keepPlayingWhenInactive: $("keepPlayingWhenInactive").checked,
+      showOverlay:             $("showOverlay").checked,
+      overlayPosition:         $("overlayPosition").value || DEFAULTS.overlayPosition,
     };
     settings = { ...settings, ...patch };
     await chrome.storage.sync.set({ settings });
