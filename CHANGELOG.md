@@ -173,5 +173,14 @@ Format inspired by Keep a Changelog. Versioning: SemVer.
 ### Notes
 - No new permissions. No analytics.
 
+## 2.0.7 — 2026-06-02
+### Fixed
+- **LIVE badge removed from popup:** was incorrectly appearing on non-video pages and sites with hidden audio/video elements (e.g. claude.ai voice interface).
+- **Extension icon corners:** white corner pixels replaced with full transparency on all icon sizes (16, 48, 128).
+- **Popup title centered.**
+
+### Notes
+- No new permissions. No analytics.
+
 ## Unreleased
 - (add upcoming changes here)
