@@ -290,7 +290,7 @@ if (window.top === window.self) {
       const pr = getYouTubePlayerResponse();
       if (pr) {
         const mf = pr.microformat?.playerMicroformatRenderer; const vd = pr.videoDetails || {}; const lb = mf?.liveBroadcastDetails || {};
-        if (vd.isLiveContent === true || lb?.isLiveNow === true || pr.playabilityStatus?.liveStreamability) liveNow = true;
+        if (lb?.isLiveNow === true || pr.playabilityStatus?.liveStreamability) liveNow = true;
         const ts = lb?.startTimestamp; if (ts) { const ms = Date.parse(ts); if (!isNaN(ms)) startMs = ms; }
       }
       if (!startMs) { const m = document.querySelector('meta[itemprop="startDate"]')?.getAttribute("content"); if (m) { const ms = Date.parse(m); if (!isNaN(ms)) startMs = ms; } }
