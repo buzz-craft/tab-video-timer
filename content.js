@@ -94,9 +94,7 @@ if (window.top === window.self) {
     let overlayEl      = null;
     let overlayVisible = false;
 
-    // Keep-playing guard
     let tabHiddenAt = 0;
-    let keepPlayingGuardTimer = null;
 
     // Hide guard
     let hideGuardActive = false;
@@ -325,7 +323,7 @@ if (window.top === window.self) {
       if (flushSecs >= 5) {
         chrome.runtime.sendMessage({ type: "WATCH_TIME_UPDATE", site: canonicalHost(location.hostname), seconds: flushSecs }).catch(() => {});
       }
-      watchAccumSecs = 0; selectedVideoIndex = 0; continuousWatchSecs = 0; continuousSegStart = null; breakReminderFired = false; stopKeepPlayingGuard(); document.documentElement.removeAttribute("data-tvt-keep-playing");
+      watchAccumSecs = 0; selectedVideoIndex = 0; continuousWatchSecs = 0; continuousSegStart = null; breakReminderFired = false;
     }
 
     // ─── ENABLEMENT ──────────────────────────────────────────────────────────
@@ -375,18 +373,6 @@ if (window.top === window.self) {
       if (getContinuousSecs() >= mins * 60) { breakReminderFired = true; try { chrome.runtime.sendMessage({ type: "BREAK_REMINDER", seconds: Math.floor(getContinuousSecs()) }); } catch {} }
     }
 
-    // ─── KEEP-PLAYING GUARD ───────────────────────────────────────────────────
-    function stopKeepPlayingGuard() {
-      if (keepPlayingGuardTimer) { clearInterval(keepPlayingGuardTimer); keepPlayingGuardTimer = null; }
-    }
-    function startKeepPlayingGuard(media) {
-      stopKeepPlayingGuard();
-      keepPlayingGuardTimer = setInterval(() => {
-        if (!document.hidden || !settings.keepPlayingWhenInactive) { stopKeepPlayingGuard(); return; }
-        if (media.paused && !media.ended && document.body.contains(media)) media.play().catch(() => {});
-      }, 300);
-    }
-
     // ─── VIDEO LISTENERS (ended, watch-time) ─────────────────────────────────
     function attachVideoListeners(media) {
       if (!media || listenedVideos.has(media)) return;
@@ -394,6 +380,13 @@ if (window.top === window.self) {
       media.addEventListener("ended", () => {
         onWatchPaused(); reportWatchTime();
         if (settings.endNotification) try { chrome.runtime.sendMessage({ type: "VIDEO_ENDED", title: currentBaseTitle() }); } catch {}
+      });
+      media.addEventListener("pause", () => {
+        if (!settings.keepPlayingWhenInactive || !document.hidden || media.ended) return;
+        if (nowMs() - tabHiddenAt > 600) return;
+        setTimeout(() => {
+          if (media.paused && !media.ended && document.hidden) media.play().catch(() => {});
+        }, 100);
       });
     }
 
@@ -497,23 +490,7 @@ if (window.top === window.self) {
       if (hide && hidden) hideGuardStart();
       else if (hideGuardActive) { hideGuardStop(); setTimeout(() => { try { tick(); } catch {} }, 0); }
     }
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) {
-        tabHiddenAt = nowMs();
-        if (settings.keepPlayingWhenInactive) {
-          const all = Array.from(document.querySelectorAll("video,audio"));
-          const tracked = all[selectedVideoIndex] || null;
-          if (tracked && !tracked.paused && !tracked.ended) {
-            document.documentElement.setAttribute("data-tvt-keep-playing", "1");
-            startKeepPlayingGuard(tracked);
-          }
-        }
-      } else {
-        document.documentElement.removeAttribute("data-tvt-keep-playing");
-        stopKeepPlayingGuard();
-      }
-      maybeToggleHideGuard();
-    }, { capture: true });
+    document.addEventListener("visibilitychange", () => { if (document.hidden) tabHiddenAt = nowMs(); maybeToggleHideGuard(); }, { capture: true });
     window.addEventListener("pagehide",   () => maybeToggleHideGuard(), { capture: true });
     window.addEventListener("pageshow",   () => maybeToggleHideGuard(), { capture: true });
     window.addEventListener("blur",       () => maybeToggleHideGuard(), { capture: true });
@@ -692,7 +669,7 @@ if (window.top === window.self) {
 
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== "sync") return;
-      if (changes.settings?.newValue) { const s = changes.settings.newValue || {}; const prevShow = settings.showOverlay; const prevEnabled = enabledForHost; settings = { ...DEFAULTS, ...s }; computeEnabledFlags(); const showNow = settings.showOverlay && enabledForHost; const showBefore = prevShow && prevEnabled; if (showNow !== showBefore) toggleOverlay(showNow); if (!settings.keepPlayingWhenInactive) { document.documentElement.removeAttribute("data-tvt-keep-playing"); stopKeepPlayingGuard(); } }
+      if (changes.settings?.newValue) { const s = changes.settings.newValue || {}; const prevShow = settings.showOverlay; const prevEnabled = enabledForHost; settings = { ...DEFAULTS, ...s }; computeEnabledFlags(); const showNow = settings.showOverlay && enabledForHost; const showBefore = prevShow && prevEnabled; if (showNow !== showBefore) toggleOverlay(showNow); }
       if (changes.sites?.newValue) { const r = changes.sites.newValue || {}; sitesRaw = r; sitesCanon = {}; for (const [k,v] of Object.entries(r)) sitesCanon[canonicalHost(k)] = v; computeEnabledFlags(); }
       startLoop();
     });
