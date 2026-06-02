@@ -383,9 +383,7 @@ if (window.top === window.self) {
       });
       media.addEventListener("pause", () => {
         if (!settings.keepPlayingWhenInactive || !document.hidden || media.ended) return;
-        setTimeout(() => {
-          if (media.paused && !media.ended && document.hidden) media.play().catch(() => {});
-        }, 100);
+        media.play().catch(() => {});
       });
     }
 
