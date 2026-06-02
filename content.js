@@ -714,7 +714,8 @@ if (window.top === window.self) {
         const media = getPlayingMedia() || getAnyRelevantMedia();
         if (!media) { sendResponse?.({ hasMedia: false, enabled: enabledForHost }); return; }
         const dur = Number(media.duration); const cur = media.currentTime || 0; const rate = media.playbackRate || 1;
-        const live = isStrongLive(media); const playing = !media.paused && !media.ended && media.readyState >= 2;
+        const playing = !media.paused && !media.ended && media.readyState >= 2;
+        const live = playing && isStrongLive(media);
         const originMs = liveStartMs ?? fallbackLiveStartMs ?? null;
         const rawLeft = (Number.isFinite(dur) && dur > 0) ? clamp(dur - cur, 0, dur) : null;
         const adjLeft = (rawLeft != null && settings.speedAwareCountdown && rate > 0) ? clamp(rawLeft / rate, 0, rawLeft) : rawLeft;
