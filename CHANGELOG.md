@@ -182,5 +182,12 @@ Format inspired by Keep a Changelog. Versioning: SemVer.
 ### Notes
 - No new permissions. No analytics.
 
+## 2.0.8 — 2026-08-10
+### Fixed
+- **Timer no longer freezes in background tabs:** Chrome throttles `setInterval` in hidden tabs to roughly once per minute and can stall it entirely, so the tab title stopped counting down while the video kept playing, then jumped to the correct time on returning to the tab. The update loop now runs off a Web Worker timer, which is not subject to the same throttling. Falls back to `setInterval` if worker creation fails (e.g. a page CSP that blocks `blob:` workers).
+
+### Notes
+- No new permissions. No analytics.
+
 ## Unreleased
 - (add upcoming changes here)
