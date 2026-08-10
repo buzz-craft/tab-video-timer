@@ -75,6 +75,7 @@ if (window.top === window.self) {
     let navAtMs          = Date.now();
     let dvrQuarantineUntil = 0;
     let intervalId       = null;
+    let tickWorker       = null;
     let prevEffectiveEnabled = null;
     let lastTwitchIdentity   = "";
 
@@ -649,8 +650,22 @@ if (window.top === window.self) {
     }
 
     function startLoop() {
-      if (intervalId) clearInterval(intervalId);
-      intervalId = setInterval(tick, clamp(Number(settings.updateIntervalMs)||250, 100, 5000));
+      const ms = clamp(Number(settings.updateIntervalMs)||250, 100, 5000);
+      if (intervalId) { clearInterval(intervalId); intervalId = null; }
+      if (tickWorker) { tickWorker.terminate(); tickWorker = null; }
+      // Chrome throttles setInterval in background tabs down to ~1/min and can
+      // stall it entirely. A worker timer keeps firing, so the title stays live
+      // while the tab is hidden.
+      try {
+        const src = `let id=null;onmessage=e=>{if(id)clearInterval(id);if(e.data>0)id=setInterval(()=>postMessage(0),e.data)}`;
+        const url = URL.createObjectURL(new Blob([src], { type: "text/javascript" }));
+        tickWorker = new Worker(url);
+        URL.revokeObjectURL(url);
+        tickWorker.onmessage = () => { try { tick(); } catch {} };
+        tickWorker.postMessage(ms);
+      } catch {
+        intervalId = setInterval(tick, ms);
+      }
       setTimeout(tick, 80);
     }
 
